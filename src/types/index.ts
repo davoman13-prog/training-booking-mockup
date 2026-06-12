@@ -9,6 +9,7 @@ export type CertificateStatus = 'available' | 'pending' | 'issued'
 export interface Course {
   id: string
   title: string
+  category: string
   description: string
   fundingType: CourseFundingType
   status: CourseStatus
@@ -111,4 +112,15 @@ export interface ReportMetric {
 export interface NavigationItem {
   label: string
   path: string
+}
+
+export interface MockUser {
+  id: string
+  name: string
+  email: string
+  role: Role
+}
+
+export interface MockCredential extends MockUser {
+  password: string
 }

@@ -1,5 +1,5 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
-import { Role } from '../types'
+import { MockUser } from '../types'
 import DelegateDashboardPage from '../pages/delegate/DashboardPage'
 import RegisterPage from '../pages/delegate/RegisterPage'
 import LoginPage from '../pages/delegate/LoginPage'
@@ -23,20 +23,26 @@ import AttendancePage from '../pages/admin/AttendancePage'
 import CertificateManagementPage from '../pages/admin/CertificateManagementPage'
 import InvoiceManagementPage from '../pages/admin/InvoiceManagementPage'
 import ReportsPage from '../pages/admin/ReportsPage'
-import NotFoundPage from '../pages/NotFoundPage'
 
 interface AppRoutesProps {
-  role: Role
-  onRoleChange: (role: Role) => void
+  currentUser: MockUser | null
+  onLogin: (user: MockUser) => void
 }
 
-export default function AppRoutes({ role, onRoleChange }: AppRoutesProps) {
+export default function AppRoutes({ currentUser, onLogin }: AppRoutesProps) {
+  const homePath = currentUser ? `/${currentUser.role}/dashboard` : '/login'
+
   return (
     <Routes>
-      <Route path="login" element={<LoginPage onRoleChange={onRoleChange} />} />
-      <Route path="delegate/login" element={<LoginPage onRoleChange={onRoleChange} />} />
-      <Route path="delegate/register" element={<RegisterPage onRoleChange={onRoleChange} />} />
-      {role === 'delegate' ? (
+      <Route path="login" element={currentUser ? <Navigate to={homePath} replace /> : <LoginPage onLogin={onLogin} />} />
+      <Route path="delegate/login" element={<Navigate to="/login" replace />} />
+      <Route path="delegate/register" element={<RegisterPage onLogin={onLogin} />} />
+
+      {!currentUser ? (
+        <>
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </>
+      ) : currentUser.role === 'delegate' ? (
         <>
           <Route path="delegate/dashboard" element={<DelegateDashboardPage />} />
           <Route path="delegate/browse" element={<BrowseCoursesPage />} />
@@ -47,6 +53,7 @@ export default function AppRoutes({ role, onRoleChange }: AppRoutesProps) {
           <Route path="delegate/bookings" element={<MyBookingsPage />} />
           <Route path="delegate/certificates" element={<CertificatesPage />} />
           <Route path="delegate/invoices" element={<InvoicesPage />} />
+          <Route path="admin/*" element={<Navigate to="/delegate/dashboard" replace />} />
           <Route path="*" element={<Navigate to="/delegate/dashboard" replace />} />
         </>
       ) : (
@@ -67,6 +74,7 @@ export default function AppRoutes({ role, onRoleChange }: AppRoutesProps) {
           <Route path="admin/certificates" element={<CertificateManagementPage />} />
           <Route path="admin/invoices" element={<InvoiceManagementPage />} />
           <Route path="admin/reports" element={<ReportsPage />} />
+          <Route path="delegate/*" element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
         </>
       )}
