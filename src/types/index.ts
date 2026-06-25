@@ -33,7 +33,12 @@ export interface Location {
   address: string
   city: string
   postcode: string
+  roomName: string
   capacity: number
+  contactName: string
+  contactEmail: string
+  contactPhone: string
+  isActive: boolean
   notes?: string
 }
 
