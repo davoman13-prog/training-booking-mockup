@@ -208,7 +208,7 @@ export default function ManageSessionsPage() {
                 <td className="px-4 py-4 text-sm text-slate-700">{location?.name}</td>
                 <td className="px-4 py-4 text-sm text-slate-700">{session.trainer ?? 'To be confirmed'}</td>
                 <td className="px-4 py-4 text-sm text-slate-700">{sessionCapacity(session)}</td>
-                <td className="px-4 py-4 text-sm text-slate-700">{session.attendeeCount}</td>
+                <td className="px-4 py-4 text-sm"><Link to={`/admin/sessions/${session.id}/delegates`} className="font-semibold text-cyan-800 hover:text-cyan-950">{session.attendeeCount}</Link></td>
                 <td className="px-4 py-4 text-sm text-slate-700">{session.availableSeats}</td>
                 <td className="px-4 py-4 text-sm"><Badge label={derivedStatus} variant={statusVariant(derivedStatus)} /></td>
                 <td className="px-4 py-4 text-sm text-slate-700">{course?.fundingType}</td>
@@ -220,7 +220,10 @@ export default function ManageSessionsPage() {
                   )}
                 </td>
                 <td className="px-4 py-4 text-right text-sm">
-                  <Link to={`/admin/sessions/${session.id}/edit`} className="font-semibold text-slate-900 hover:text-cyan-800">Edit</Link>
+                  <div className="flex justify-end gap-3">
+                    <Link to={`/admin/sessions/${session.id}/delegates`} className="font-semibold text-cyan-800 hover:text-cyan-950">View delegates</Link>
+                    <Link to={`/admin/sessions/${session.id}/edit`} className="font-semibold text-slate-900 hover:text-cyan-800">Edit</Link>
+                  </div>
                 </td>
               </tr>
             )

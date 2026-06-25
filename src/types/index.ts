@@ -60,9 +60,13 @@ export interface Delegate {
   id: string
   name: string
   email: string
+  phone?: string
   organisation: string
   managerName: string
   managerEmail: string
+  accountStatus?: 'active' | 'inactive' | 'anonymised'
+  registrationDate?: string
+  adminNotes?: string
   specialRequirements?: string
   bookingIds: string[]
   certificateIds: string[]
