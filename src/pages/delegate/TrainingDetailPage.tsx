@@ -1,5 +1,5 @@
 import { Link, useParams } from 'react-router-dom'
-import { bookings, certificates, courses, invoices, locations, sessions } from '../../data/mockData'
+import { bookings, certificates, courses, delegates, invoices, locations, sessions } from '../../data/mockData'
 import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
@@ -22,6 +22,7 @@ export default function TrainingDetailPage() {
   const course = courses.find((item) => item.id === booking.courseId)
   const session = sessions.find((item) => item.id === booking.sessionId)
   const location = locations.find((item) => item.id === booking.locationId)
+  const delegate = delegates.find((item) => item.id === booking.delegateId)
   const invoice = invoices.find((item) => item.id === booking.invoiceId)
   const certificate = certificates.find((item) => item.id === booking.certificateId)
 
@@ -65,9 +66,20 @@ export default function TrainingDetailPage() {
             <div><dt className="font-semibold text-slate-900">Booking status</dt><dd><Badge label={booking.status} variant={statusVariant(booking.status)} /></dd></div>
             <div><dt className="font-semibold text-slate-900">Attendance</dt><dd><Badge label={booking.attendanceMarked ? 'attended' : 'not marked'} variant={booking.attendanceMarked ? 'success' : 'warning'} /></dd></div>
             <div><dt className="font-semibold text-slate-900">Terms summary</dt><dd className="text-slate-600">{booking.termsAccepted ? 'Terms and conditions accepted for this mock booking.' : 'Terms acceptance not recorded.'}</dd></div>
+            <div><dt className="font-semibold text-slate-900">Special requirements</dt><dd className="text-slate-600">{booking.specialRequirements ?? delegate?.specialRequirements ?? 'None recorded'}</dd></div>
           </dl>
         </Card>
       </div>
+
+      <Card>
+        <h2 className="text-lg font-semibold text-slate-950">Delegate and practice</h2>
+        <dl className="mt-4 grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
+          <div><dt className="font-semibold text-slate-900">Delegate</dt><dd className="text-slate-600">{delegate?.name}</dd></div>
+          <div><dt className="font-semibold text-slate-900">Practice / organisation</dt><dd className="text-slate-600">{delegate?.organisation}</dd></div>
+          <div><dt className="font-semibold text-slate-900">Practice manager</dt><dd className="text-slate-600">{delegate?.managerName}</dd></div>
+          <div><dt className="font-semibold text-slate-900">Manager email</dt><dd className="text-slate-600">{delegate?.managerEmail}</dd></div>
+        </dl>
+      </Card>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
@@ -77,7 +89,7 @@ export default function TrainingDetailPage() {
               <p>Status: <span className="font-semibold text-slate-900">{invoice.status}</span></p>
               <p>Amount: <span className="font-semibold text-slate-900">{formatCurrency(invoice.amount)}</span></p>
               <p>Due: {formatDate(invoice.dueDate)}</p>
-              <Button variant="secondary">View invoice</Button>
+              <Link to={`/delegate/invoices/${invoice.id}`}><Button variant="secondary">View invoice</Button></Link>
             </div>
           ) : (
             <p className="mt-4 text-sm text-slate-600">No invoice is required for this booking.</p>
@@ -90,7 +102,9 @@ export default function TrainingDetailPage() {
             <div className="mt-4 space-y-3 text-sm text-slate-600">
               <p>Status: <span className="font-semibold text-slate-900">{certificate.status}</span></p>
               <p>Issued: {certificate.issuedDate ? formatDate(certificate.issuedDate) : 'Pending'}</p>
-              <Button disabled={certificate.status !== 'available'}>{certificate.status === 'available' ? 'Download certificate' : 'Certificate pending'}</Button>
+              <Link to={`/delegate/certificates/${certificate.id}`}>
+                <Button disabled={certificate.status !== 'available'}>{certificate.status === 'available' ? 'Download certificate' : 'Certificate pending'}</Button>
+              </Link>
             </div>
           ) : (
             <p className="mt-4 text-sm text-slate-600">Certificate status will appear after completed attendance.</p>
@@ -101,8 +115,8 @@ export default function TrainingDetailPage() {
       <div className="flex flex-wrap gap-3">
         <Link to="/delegate/dashboard"><Button variant="secondary">Return to dashboard</Button></Link>
         <Link to="/delegate/bookings"><Button variant="ghost">View all bookings</Button></Link>
-        {invoice && invoice.status !== 'not_required' ? <Link to="/delegate/invoices"><Button variant="ghost">Invoices</Button></Link> : null}
-        {certificate?.status === 'available' ? <Link to="/delegate/certificates"><Button variant="ghost">Certificates</Button></Link> : null}
+        {invoice && invoice.status !== 'not_required' ? <Link to={`/delegate/invoices/${invoice.id}`}><Button variant="ghost">View invoice</Button></Link> : null}
+        {certificate?.status === 'available' ? <Link to={`/delegate/certificates/${certificate.id}`}><Button variant="ghost">View certificate</Button></Link> : null}
       </div>
     </div>
   )
