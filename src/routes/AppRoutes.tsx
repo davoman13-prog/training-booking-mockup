@@ -8,6 +8,7 @@ import CourseDetailPage from '../pages/delegate/CourseDetailPage'
 import BookingFormPage from '../pages/delegate/BookingFormPage'
 import BookingConfirmationPage from '../pages/delegate/BookingConfirmationPage'
 import MyBookingsPage from '../pages/delegate/MyBookingsPage'
+import TrainingDetailPage from '../pages/delegate/TrainingDetailPage'
 import CertificatesPage from '../pages/delegate/CertificatesPage'
 import InvoicesPage from '../pages/delegate/InvoicesPage'
 import AdminDashboardPage from '../pages/admin/DashboardPage'
@@ -53,6 +54,7 @@ export default function AppRoutes({ currentUser, onLogin }: AppRoutesProps) {
           <Route path="delegate/book/:courseId/:sessionId" element={<BookingFormPage />} />
           <Route path="delegate/book/:courseId" element={<BookingFormPage />} />
           <Route path="delegate/confirmation" element={<BookingConfirmationPage />} />
+          <Route path="delegate/bookings/:bookingId" element={<TrainingDetailPage />} />
           <Route path="delegate/bookings" element={<MyBookingsPage />} />
           <Route path="delegate/certificates" element={<CertificatesPage />} />
           <Route path="delegate/invoices" element={<InvoicesPage />} />

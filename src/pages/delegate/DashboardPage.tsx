@@ -81,7 +81,9 @@ export default function DelegateDashboardPage() {
             <Card key={booking.id}>
               <div className="grid gap-4 xl:grid-cols-[1.5fr_1fr_1fr_auto] xl:items-center">
                 <div>
-                  <h3 className="text-lg font-semibold text-slate-950">{course?.title}</h3>
+                  <Link to={`/delegate/bookings/${booking.id}`} className="text-lg font-semibold text-cyan-800 hover:text-cyan-950">
+                    {course?.title}
+                  </Link>
                   <p className="mt-1 text-sm text-slate-600">
                     {session ? formatDate(session.startDate) : 'Date to be confirmed'} at {location?.name}
                   </p>

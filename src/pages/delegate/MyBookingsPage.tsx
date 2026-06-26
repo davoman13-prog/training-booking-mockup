@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { bookings, courses, delegates, invoices, locations, sessions } from '../../data/mockData'
 import Badge from '../../components/ui/Badge'
 import Card from '../../components/ui/Card'
@@ -25,7 +26,9 @@ export default function MyBookingsPage() {
             <Card key={booking.id}>
               <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr_1fr_auto] lg:items-center">
                 <div>
-                  <p className="text-base font-semibold text-slate-950">{course?.title}</p>
+                  <Link to={`/delegate/bookings/${booking.id}`} className="text-base font-semibold text-cyan-800 hover:text-cyan-950">
+                    {course?.title}
+                  </Link>
                   <p className="mt-2 text-sm text-slate-600">
                     {session ? formatDate(session.startDate) : booking.bookingDate} / {session?.startTime} - {session?.endTime}
                   </p>
