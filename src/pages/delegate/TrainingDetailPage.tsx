@@ -4,6 +4,7 @@ import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
 import { formatCurrency, formatDate } from '../../utils/formatters'
+import { trainerNameById } from '../../utils/trainerUtils'
 
 function statusVariant(status?: string) {
   if (status === 'confirmed' || status === 'completed' || status === 'available' || status === 'paid' || status === 'not_required') return 'success'
@@ -55,7 +56,7 @@ export default function TrainingDetailPage() {
             <div><dt className="font-semibold text-slate-900">Date</dt><dd className="text-slate-600">{session ? formatDate(session.startDate) : 'To be confirmed'}</dd></div>
             <div><dt className="font-semibold text-slate-900">Time</dt><dd className="text-slate-600">{session?.startTime} - {session?.endTime}</dd></div>
             <div><dt className="font-semibold text-slate-900">Location</dt><dd className="text-slate-600">{location?.name}</dd></div>
-            <div><dt className="font-semibold text-slate-900">Trainer</dt><dd className="text-slate-600">{session?.trainer ?? 'To be confirmed'}</dd></div>
+            <div><dt className="font-semibold text-slate-900">Trainer</dt><dd className="text-slate-600">{trainerNameById(session?.trainerId)}</dd></div>
           </dl>
         </Card>
 

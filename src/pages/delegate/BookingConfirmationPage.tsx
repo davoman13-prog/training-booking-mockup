@@ -4,6 +4,7 @@ import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
 import { formatCurrency, formatDate } from '../../utils/formatters'
+import { trainerNameById } from '../../utils/trainerUtils'
 
 export default function BookingConfirmationPage() {
   const [searchParams] = useSearchParams()
@@ -26,7 +27,7 @@ export default function BookingConfirmationPage() {
               <div><dt className="font-semibold text-slate-900">Date</dt><dd>{formatDate(session.startDate)}</dd></div>
               <div><dt className="font-semibold text-slate-900">Time</dt><dd>{session.startTime} - {session.endTime}</dd></div>
               <div><dt className="font-semibold text-slate-900">Location</dt><dd>{location?.name}</dd></div>
-              <div><dt className="font-semibold text-slate-900">Trainer</dt><dd>{session.trainer ?? 'To be confirmed'}</dd></div>
+              <div><dt className="font-semibold text-slate-900">Trainer</dt><dd>{trainerNameById(session.trainerId)}</dd></div>
               <div><dt className="font-semibold text-slate-900">Funding</dt><dd>{course.fundingType === 'funded' ? 'Funded - no invoice' : `Unfunded - ${formatCurrency(course.price ?? 0)}`}</dd></div>
               <div><dt className="font-semibold text-slate-900">Status</dt><dd>{session.status}</dd></div>
             </dl>

@@ -20,6 +20,9 @@ import ManageSessionsPage from '../pages/admin/ManageSessionsPage'
 import SessionFormPage from '../pages/admin/SessionFormPage'
 import ManageLocationsPage from '../pages/admin/ManageLocationsPage'
 import LocationFormPage from '../pages/admin/LocationFormPage'
+import ManageTrainersPage from '../pages/admin/ManageTrainersPage'
+import TrainerDetailPage from '../pages/admin/TrainerDetailPage'
+import TrainerFormPage from '../pages/admin/TrainerFormPage'
 import DelegatesPage from '../pages/admin/DelegatesPage'
 import DelegateDetailPage from '../pages/admin/DelegateDetailPage'
 import SessionDelegatesPage from '../pages/admin/SessionDelegatesPage'
@@ -78,6 +81,10 @@ export default function AppRoutes({ currentUser, onLogin }: AppRoutesProps) {
           <Route path="admin/locations" element={<ManageLocationsPage />} />
           <Route path="admin/locations/new" element={<LocationFormPage />} />
           <Route path="admin/locations/:locationId/edit" element={<LocationFormPage />} />
+          <Route path="admin/trainers" element={<ManageTrainersPage />} />
+          <Route path="admin/trainers/new" element={<TrainerFormPage />} />
+          <Route path="admin/trainers/:trainerId" element={<TrainerDetailPage />} />
+          <Route path="admin/trainers/:trainerId/edit" element={<TrainerFormPage />} />
           <Route path="admin/delegates" element={<DelegatesPage />} />
           <Route path="admin/delegates/:delegateId" element={<DelegateDetailPage />} />
           <Route path="admin/bookings" element={<ViewBookingsPage />} />

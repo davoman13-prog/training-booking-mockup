@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { bookings, courses, delegates, invoices } from '../../data/mockData'
 import Card from '../../components/ui/Card'
 import Badge from '../../components/ui/Badge'
@@ -18,12 +18,13 @@ function invoiceVariant(status: string) {
 }
 
 export default function InvoiceManagementPage() {
-  const [searchTerm, setSearchTerm] = useState('')
-  const [status, setStatus] = useState(anyValue)
-  const [courseId, setCourseId] = useState(anyValue)
-  const [funding, setFunding] = useState(anyValue)
-  const [paymentGroup, setPaymentGroup] = useState(anyValue)
-  const [dateState, setDateState] = useState(anyValue)
+  const [searchParams] = useSearchParams()
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('search') ?? '')
+  const [status, setStatus] = useState(searchParams.get('status') ?? anyValue)
+  const [courseId, setCourseId] = useState(searchParams.get('courseId') ?? anyValue)
+  const [funding, setFunding] = useState(searchParams.get('funding') ?? anyValue)
+  const [paymentGroup, setPaymentGroup] = useState(searchParams.get('paymentGroup') ?? anyValue)
+  const [dateState, setDateState] = useState(searchParams.get('dateState') ?? anyValue)
   const [sortBy, setSortBy] = useState('due-oldest')
 
   const filteredInvoices = useMemo(() => {
@@ -53,7 +54,8 @@ export default function InvoiceManagementPage() {
           paymentGroup === anyValue ||
           (paymentGroup === 'paid' && invoice.status === 'paid') ||
           (paymentGroup === 'unpaid' && invoice.status === 'unpaid') ||
-          (paymentGroup === 'overdue' && invoice.status === 'overdue')
+          (paymentGroup === 'overdue' && invoice.status === 'overdue') ||
+          (paymentGroup === 'outstanding' && ['unpaid', 'overdue'].includes(invoice.status))
         const matchesDateState =
           dateState === anyValue ||
           (dateState === 'issued' && invoice.isGenerated) ||
@@ -110,6 +112,7 @@ export default function InvoiceManagementPage() {
               <option value={anyValue}>All statuses</option>
               <option value="paid">Paid</option>
               <option value="unpaid">Unpaid</option>
+              <option value="outstanding">Unpaid / overdue</option>
               <option value="overdue">Overdue</option>
               <option value="not_required">Not required</option>
             </Select>

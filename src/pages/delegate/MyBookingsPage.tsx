@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
@@ -20,14 +20,16 @@ function attendanceLabel(marked: boolean) {
 }
 
 export default function MyBookingsPage() {
+  const [searchParams] = useSearchParams()
   const delegate = delegates[0]
-  const [search, setSearch] = useState('')
-  const [bookingStatus, setBookingStatus] = useState('all')
-  const [attendanceStatus, setAttendanceStatus] = useState('all')
-  const [fundingType, setFundingType] = useState('all')
-  const [invoiceStatus, setInvoiceStatus] = useState('all')
-  const [certificateStatus, setCertificateStatus] = useState('all')
-  const [trainingStage, setTrainingStage] = useState('all')
+  const initialStatus = searchParams.get('status') ?? 'all'
+  const [search, setSearch] = useState(searchParams.get('search') ?? '')
+  const [bookingStatus, setBookingStatus] = useState(['confirmed', 'pending', 'completed', 'cancelled'].includes(initialStatus) ? initialStatus : 'all')
+  const [attendanceStatus, setAttendanceStatus] = useState(searchParams.get('attendance') ?? 'all')
+  const [fundingType, setFundingType] = useState(searchParams.get('funding') ?? 'all')
+  const [invoiceStatus, setInvoiceStatus] = useState(searchParams.get('invoiceStatus') ?? 'all')
+  const [certificateStatus, setCertificateStatus] = useState(searchParams.get('certificateStatus') ?? 'all')
+  const [trainingStage, setTrainingStage] = useState(searchParams.get('stage') ?? (['upcoming', 'completed', 'cancelled'].includes(initialStatus) ? initialStatus : 'all'))
   const [sortBy, setSortBy] = useState('sessionDateAsc')
 
   const rows = useMemo(() => {
@@ -73,8 +75,8 @@ export default function MyBookingsPage() {
           (bookingStatus === 'all' || booking.status === bookingStatus) &&
           (attendanceStatus === 'all' || (attendanceStatus === 'attended' ? booking.attendanceMarked : !booking.attendanceMarked)) &&
           (fundingType === 'all' || course?.fundingType === fundingType) &&
-          (invoiceStatus === 'all' || invoiceText === invoiceStatus) &&
-          (certificateStatus === 'all' || certificateText === certificateStatus) &&
+          (invoiceStatus === 'all' || invoiceText === invoiceStatus || (invoiceStatus === 'outstanding' && ['unpaid', 'overdue'].includes(invoiceText))) &&
+          (certificateStatus === 'all' || certificateText === certificateStatus || (certificateStatus === 'downloadable' && ['available', 'issued'].includes(certificateText))) &&
           (trainingStage === 'all' ||
             (trainingStage === 'upcoming' && isUpcoming) ||
             (trainingStage === 'completed' && isCompleted) ||
@@ -168,6 +170,7 @@ export default function MyBookingsPage() {
               <option value="paid">Paid</option>
               <option value="unpaid">Unpaid</option>
               <option value="overdue">Overdue</option>
+              <option value="outstanding">Unpaid / overdue</option>
               <option value="not_required">Not required</option>
               <option value="not generated">Not generated</option>
             </select>
@@ -178,6 +181,7 @@ export default function MyBookingsPage() {
               <option value="all">All certificates</option>
               <option value="available">Available</option>
               <option value="issued">Issued</option>
+              <option value="downloadable">Available / issued</option>
               <option value="pending">Pending</option>
               <option value="not issued">Not issued</option>
             </select>

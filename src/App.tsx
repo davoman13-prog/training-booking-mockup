@@ -31,6 +31,7 @@ function App() {
             { label: 'Courses', path: '/admin/courses' },
             { label: 'Sessions', path: '/admin/sessions' },
             { label: 'Locations', path: '/admin/locations' },
+            { label: 'Trainers', path: '/admin/trainers' },
             { label: 'Delegates', path: '/admin/delegates' },
             { label: 'Bookings', path: '/admin/bookings' },
             { label: 'Attendance', path: '/admin/attendance' },
