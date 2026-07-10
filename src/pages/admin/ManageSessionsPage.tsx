@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { courses, locations, sessions } from '../../data/mockData'
+import { Link, useSearchParams } from 'react-router-dom'
+import { courses, locations, sessions, trainers } from '../../data/mockData'
 import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
@@ -8,6 +8,8 @@ import Input from '../../components/ui/Input'
 import Select from '../../components/ui/Select'
 import Table from '../../components/ui/Table'
 import { formatDate } from '../../utils/formatters'
+import { activeBookingCount, daysUntilSession, riskExplanation, sessionDisplayStatus, statusVariant } from '../../utils/sessionRules'
+import { trainerNameById } from '../../utils/trainerUtils'
 import { Session } from '../../types'
 
 const anyValue = 'any'
@@ -16,36 +18,19 @@ function sessionCapacity(session: Session) {
   return session.attendeeCount + session.availableSeats
 }
 
-function adminSessionStatus(session: Session) {
-  const course = courses.find((item) => item.id === session.courseId)
-
-  if (session.status === 'cancelled') return 'Cancelled'
-  if (session.status === 'completed') return 'Completed'
-  if (session.availableSeats <= 0) return 'Full'
-  if (course?.status === 'at_risk' || course?.status === 'awaiting_minimum') return 'At risk'
-  if (course?.minimumAttendees && session.attendeeCount >= course.minimumAttendees) return 'Confirmed'
-  return 'Open'
-}
-
-function statusVariant(status: string) {
-  if (status === 'Cancelled') return 'danger'
-  if (status === 'Completed' || status === 'Confirmed') return 'success'
-  if (status === 'At risk') return 'warning'
-  return 'info'
-}
-
 export default function ManageSessionsPage() {
-  const [searchTerm, setSearchTerm] = useState('')
-  const [locationId, setLocationId] = useState(anyValue)
-  const [trainer, setTrainer] = useState(anyValue)
-  const [status, setStatus] = useState(anyValue)
-  const [funding, setFunding] = useState(anyValue)
-  const [timing, setTiming] = useState(anyValue)
+  const [searchParams] = useSearchParams()
+  const statusParam = searchParams.get('status')
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('search') ?? '')
+  const [locationId, setLocationId] = useState(searchParams.get('locationId') ?? anyValue)
+  const [trainerId, setTrainerId] = useState(searchParams.get('trainerId') ?? anyValue)
+  const [status, setStatus] = useState(statusParam === 'at_risk' ? 'At risk' : searchParams.get('displayStatus') ?? anyValue)
+  const [funding, setFunding] = useState(searchParams.get('funding') ?? anyValue)
+  const [timing, setTiming] = useState(['upcoming', 'completed', 'cancelled'].includes(statusParam ?? '') ? statusParam ?? anyValue : searchParams.get('timing') ?? anyValue)
   const [sortBy, setSortBy] = useState('date-oldest')
 
-  const trainers = useMemo(() => Array.from(new Set(sessions.map((session) => session.trainer).filter(Boolean))).sort(), [])
-  const statuses = ['Open', 'Confirmed', 'Full', 'At risk', 'Cancelled', 'Completed']
-  const activeFilterCount = [searchTerm.trim(), locationId !== anyValue, trainer !== anyValue, status !== anyValue, funding !== anyValue, timing !== anyValue].filter(Boolean).length
+  const statuses = ['Open', 'Confirmed', 'Full', 'At risk', 'On Hold', 'Cancelled', 'Completed']
+  const activeFilterCount = [searchTerm.trim(), locationId !== anyValue, trainerId !== anyValue, status !== anyValue, funding !== anyValue, timing !== anyValue].filter(Boolean).length
 
   const filteredSessions = useMemo(() => {
     const normalisedSearch = searchTerm.trim().toLowerCase()
@@ -54,11 +39,12 @@ export default function ManageSessionsPage() {
       .filter((session) => {
         const course = courses.find((item) => item.id === session.courseId)
         const location = locations.find((item) => item.id === session.locationId)
-        const derivedStatus = adminSessionStatus(session)
-        const searchableText = [course?.title, session.trainer, location?.name, derivedStatus].join(' ').toLowerCase()
+        const derivedStatus = sessionDisplayStatus(session, course)
+        const trainerName = trainerNameById(session.trainerId)
+        const searchableText = [course?.title, trainerName, location?.name, derivedStatus].join(' ').toLowerCase()
         const matchesSearch = !normalisedSearch || searchableText.includes(normalisedSearch)
         const matchesLocation = locationId === anyValue || session.locationId === locationId
-        const matchesTrainer = trainer === anyValue || session.trainer === trainer
+        const matchesTrainer = trainerId === anyValue || session.trainerId === trainerId
         const matchesStatus = status === anyValue || derivedStatus === status
         const matchesFunding = funding === anyValue || course?.fundingType === funding
         const matchesTiming =
@@ -78,19 +64,19 @@ export default function ManageSessionsPage() {
         if (sortBy === 'date-oldest') return a.startDate.localeCompare(b.startDate)
         if (sortBy === 'date-newest') return b.startDate.localeCompare(a.startDate)
         if (sortBy === 'course') return (courseA?.title ?? '').localeCompare(courseB?.title ?? '')
-        if (sortBy === 'trainer') return (a.trainer ?? '').localeCompare(b.trainer ?? '')
+        if (sortBy === 'trainer') return trainerNameById(a.trainerId).localeCompare(trainerNameById(b.trainerId))
         if (sortBy === 'location') return (locationA?.name ?? '').localeCompare(locationB?.name ?? '')
         if (sortBy === 'booked') return b.attendeeCount - a.attendeeCount
         if (sortBy === 'spaces') return b.availableSeats - a.availableSeats
-        if (sortBy === 'status') return adminSessionStatus(a).localeCompare(adminSessionStatus(b))
+        if (sortBy === 'status') return sessionDisplayStatus(a, courseA).localeCompare(sessionDisplayStatus(b, courseB))
         return 0
       })
-  }, [funding, locationId, searchTerm, sortBy, status, timing, trainer])
+  }, [funding, locationId, searchTerm, sortBy, status, timing, trainerId])
 
   function clearFilters() {
     setSearchTerm('')
     setLocationId(anyValue)
-    setTrainer(anyValue)
+    setTrainerId(anyValue)
     setStatus(anyValue)
     setFunding(anyValue)
     setTiming(anyValue)
@@ -124,9 +110,9 @@ export default function ManageSessionsPage() {
           </div>
           <div>
             <label className="text-sm font-semibold text-slate-900">Trainer</label>
-            <Select value={trainer} onChange={(event) => setTrainer(event.target.value)}>
+            <Select value={trainerId} onChange={(event) => setTrainerId(event.target.value)}>
               <option value={anyValue}>All trainers</option>
-              {trainers.map((item) => <option key={item} value={item}>{item}</option>)}
+              {trainers.map((item) => <option key={item.id} value={item.id}>{trainerNameById(item.id)}</option>)}
             </Select>
           </div>
           <div>
@@ -173,7 +159,7 @@ export default function ManageSessionsPage() {
           {activeFilterCount > 0 ? <Badge label={`${activeFilterCount} active filters`} variant="info" /> : null}
           {searchTerm.trim() ? <Badge label={`Search: ${searchTerm.trim()}`} /> : null}
           {locationId !== anyValue ? <Badge label={locations.find((location) => location.id === locationId)?.name ?? 'Location'} /> : null}
-          {trainer !== anyValue ? <Badge label={trainer} /> : null}
+          {trainerId !== anyValue ? <Badge label={trainerNameById(trainerId)} /> : null}
           {status !== anyValue ? <Badge label={status} /> : null}
           {funding !== anyValue ? <Badge label={funding} /> : null}
           {timing !== anyValue ? <Badge label={timing} /> : null}
@@ -189,12 +175,13 @@ export default function ManageSessionsPage() {
           </div>
         </Card>
       ) : (
-        <Table headers={['Session / Course', 'Date', 'Location', 'Trainer', 'Capacity', 'Booked', 'Spaces', 'Status', 'Funding', 'Minimum', 'Actions']}>
+        <Table headers={['Session / Course', 'Date', 'Location', 'Trainer', 'Capacity', 'Active bookings', 'Spaces', 'Status', 'Risk', 'Minimum', 'Actions']}>
           {filteredSessions.map((session) => {
             const course = courses.find((item) => item.id === session.courseId)
             const location = locations.find((item) => item.id === session.locationId)
-            const derivedStatus = adminSessionStatus(session)
-            const minimumMet = !course?.minimumAttendees || session.attendeeCount >= course.minimumAttendees
+            const derivedStatus = sessionDisplayStatus(session, course)
+            const activeBookings = activeBookingCount(session.id)
+            const minimumMet = !course?.minimumAttendees || activeBookings >= course.minimumAttendees
 
             return (
               <tr key={session.id} className="border-t border-slate-200">
@@ -206,15 +193,18 @@ export default function ManageSessionsPage() {
                 </td>
                 <td className="px-4 py-4 text-sm text-slate-700">{formatDate(session.startDate)}</td>
                 <td className="px-4 py-4 text-sm text-slate-700">{location?.name}</td>
-                <td className="px-4 py-4 text-sm text-slate-700">{session.trainer ?? 'To be confirmed'}</td>
+                <td className="px-4 py-4 text-sm text-slate-700">{trainerNameById(session.trainerId)}</td>
                 <td className="px-4 py-4 text-sm text-slate-700">{sessionCapacity(session)}</td>
-                <td className="px-4 py-4 text-sm"><Link to={`/admin/sessions/${session.id}/delegates`} className="font-semibold text-cyan-800 hover:text-cyan-950">{session.attendeeCount}</Link></td>
+                <td className="px-4 py-4 text-sm"><Link to={`/admin/sessions/${session.id}/delegates`} className="font-semibold text-cyan-800 hover:text-cyan-950">{activeBookings}</Link></td>
                 <td className="px-4 py-4 text-sm text-slate-700">{session.availableSeats}</td>
                 <td className="px-4 py-4 text-sm"><Badge label={derivedStatus} variant={statusVariant(derivedStatus)} /></td>
-                <td className="px-4 py-4 text-sm text-slate-700">{course?.fundingType}</td>
+                <td className="px-4 py-4 text-sm text-slate-700">
+                  <p>{daysUntilSession(session)} days</p>
+                  <p className="mt-1 max-w-xs text-xs text-slate-500">{riskExplanation(session, course)}</p>
+                </td>
                 <td className="px-4 py-4 text-sm">
                   {course?.fundingType === 'unfunded' ? (
-                    <Badge label={minimumMet ? 'minimum met' : 'below minimum'} variant={minimumMet ? 'success' : 'warning'} />
+                    <Badge label={minimumMet ? `${activeBookings}/${course.minimumAttendees} minimum met` : `${activeBookings}/${course.minimumAttendees} below minimum`} variant={minimumMet ? 'success' : 'warning'} />
                   ) : (
                     <span className="text-slate-500">Not required</span>
                   )}

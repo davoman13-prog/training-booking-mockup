@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { bookings, certificates, courses, delegates, invoices, locations, sessions } from '../../data/mockData'
 import Table from '../../components/ui/Table'
 import Card from '../../components/ui/Card'
@@ -24,15 +24,16 @@ function invoiceVariant(status: string) {
 }
 
 export default function ViewBookingsPage() {
-  const [searchTerm, setSearchTerm] = useState('')
-  const [bookingStatus, setBookingStatus] = useState(anyValue)
-  const [courseId, setCourseId] = useState(anyValue)
-  const [locationId, setLocationId] = useState(anyValue)
-  const [funding, setFunding] = useState(anyValue)
-  const [invoiceStatus, setInvoiceStatus] = useState(anyValue)
-  const [certificateStatus, setCertificateStatus] = useState(anyValue)
-  const [attendanceStatus, setAttendanceStatus] = useState(anyValue)
-  const [timing, setTiming] = useState(anyValue)
+  const [searchParams] = useSearchParams()
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('search') ?? '')
+  const [bookingStatus, setBookingStatus] = useState(searchParams.get('bookingStatus') ?? anyValue)
+  const [courseId, setCourseId] = useState(searchParams.get('courseId') ?? anyValue)
+  const [locationId, setLocationId] = useState(searchParams.get('locationId') ?? anyValue)
+  const [funding, setFunding] = useState(searchParams.get('funding') ?? anyValue)
+  const [invoiceStatus, setInvoiceStatus] = useState(searchParams.get('invoiceStatus') ?? anyValue)
+  const [certificateStatus, setCertificateStatus] = useState(searchParams.get('certificateStatus') ?? anyValue)
+  const [attendanceStatus, setAttendanceStatus] = useState(searchParams.get('attendanceStatus') ?? anyValue)
+  const [timing, setTiming] = useState(searchParams.get('timing') ?? anyValue)
   const [sortBy, setSortBy] = useState('booking-newest')
 
   const filteredBookings = useMemo(() => {
@@ -65,14 +66,15 @@ export default function ViewBookingsPage() {
         const matchesCourse = courseId === anyValue || booking.courseId === courseId
         const matchesLocation = locationId === anyValue || booking.locationId === locationId || session?.locationId === locationId
         const matchesFunding = funding === anyValue || course?.fundingType === funding
-        const matchesInvoice = invoiceStatus === anyValue || invoiceLabel === invoiceStatus
-        const matchesCertificate = certificateStatus === anyValue || certificateLabel === certificateStatus
+        const matchesInvoice = invoiceStatus === anyValue || invoiceLabel === invoiceStatus || (invoiceStatus === 'outstanding' && ['unpaid', 'overdue'].includes(invoiceLabel))
+        const matchesCertificate = certificateStatus === anyValue || certificateLabel === certificateStatus || (certificateStatus === 'downloadable' && ['available', 'issued'].includes(certificateLabel))
         const matchesAttendance = attendanceStatus === anyValue || (attendanceStatus === 'attended' ? booking.attendanceMarked : !booking.attendanceMarked)
         const matchesTiming =
           timing === anyValue ||
           (timing === 'upcoming' && session?.status === 'scheduled') ||
           (timing === 'completed' && (session?.status === 'completed' || booking.status === 'completed')) ||
-          (timing === 'cancelled' && (session?.status === 'cancelled' || booking.status === 'cancelled'))
+          (timing === 'cancelled' && (session?.status === 'cancelled' || booking.status === 'cancelled')) ||
+          (timing === 'current_month' && booking.bookingDate.startsWith('2026-07'))
 
         return matchesSearch && matchesBookingStatus && matchesCourse && matchesLocation && matchesFunding && matchesInvoice && matchesCertificate && matchesAttendance && matchesTiming
       })
@@ -164,6 +166,7 @@ export default function ViewBookingsPage() {
               <option value="paid">Paid</option>
               <option value="unpaid">Unpaid</option>
               <option value="overdue">Overdue</option>
+              <option value="outstanding">Unpaid / overdue</option>
               <option value="not_required">Not required</option>
               <option value="not generated">Not generated</option>
             </Select>
@@ -187,6 +190,7 @@ export default function ViewBookingsPage() {
             <option value={anyValue}>All certificate statuses</option>
             <option value="available">Available</option>
             <option value="issued">Issued</option>
+            <option value="downloadable">Available / issued</option>
             <option value="pending">Pending</option>
             <option value="not issued">Not issued</option>
           </Select>
@@ -200,6 +204,7 @@ export default function ViewBookingsPage() {
             <option value="upcoming">Upcoming</option>
             <option value="completed">Completed</option>
             <option value="cancelled">Cancelled</option>
+            <option value="current_month">Current month</option>
           </Select>
         </div>
         <div className="mt-5 flex flex-wrap items-center gap-2">
@@ -211,6 +216,7 @@ export default function ViewBookingsPage() {
           {invoiceStatus !== anyValue ? <Badge label={`invoice ${invoiceStatus}`} /> : null}
           {certificateStatus !== anyValue ? <Badge label={`certificate ${certificateStatus}`} /> : null}
           {attendanceStatus !== anyValue ? <Badge label={attendanceStatus === 'attended' ? 'attended' : 'not marked'} /> : null}
+          {timing !== anyValue ? <Badge label={timing.replace('_', ' ')} /> : null}
         </div>
       </Card>
 

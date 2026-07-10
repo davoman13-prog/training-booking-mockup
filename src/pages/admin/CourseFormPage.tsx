@@ -9,6 +9,8 @@ import Textarea from '../../components/ui/Textarea'
 import Button from '../../components/ui/Button'
 import Table from '../../components/ui/Table'
 import { formatCurrency, formatDate } from '../../utils/formatters'
+import { activeBookingCount, daysUntilSession, riskExplanation, sessionDisplayStatus as calculatedSessionStatus, statusVariant as calculatedStatusVariant } from '../../utils/sessionRules'
+import { trainerNameById } from '../../utils/trainerUtils'
 import { Course, Session } from '../../types'
 
 type BadgeVariant = 'default' | 'success' | 'warning' | 'danger' | 'info'
@@ -22,15 +24,13 @@ function sessionCapacity(session: Session) {
 }
 
 function sessionDisplayStatus(session: Session, course?: Course) {
-  if (session.status === 'cancelled') return 'Cancelled'
-  if (session.status === 'completed') return 'Completed'
-  if (session.availableSeats <= 0) return 'Full'
-  if (course?.status === 'at_risk' || course?.status === 'awaiting_minimum') return 'At risk'
-  if (course?.minimumAttendees && session.attendeeCount >= course.minimumAttendees) return 'Confirmed'
-  return 'Open'
+  return calculatedSessionStatus(session, course)
 }
 
 function statusVariant(status: string): BadgeVariant {
+  if (['Cancelled', 'Completed', 'Confirmed', 'Open', 'Full', 'At risk', 'On Hold'].includes(status)) {
+    return calculatedStatusVariant(status as ReturnType<typeof calculatedSessionStatus>)
+  }
   if (status === 'Cancelled') return 'danger'
   if (status === 'Completed' || status === 'Confirmed' || status === 'active') return 'success'
   if (status === 'At risk' || status === 'inactive') return 'warning'
@@ -193,11 +193,12 @@ export default function CourseFormPage() {
           </div>
           <div className="mt-5">
             {linkedSessions.length ? (
-              <Table headers={['Session date', 'Time', 'Location', 'Trainer', 'Capacity', 'Booked', 'Spaces', 'Status', 'Minimum']}>
+              <Table headers={['Session date', 'Time', 'Location', 'Trainer', 'Capacity', 'Active bookings', 'Spaces', 'Status', 'Risk', 'Minimum']}>
                 {linkedSessions.map((session) => {
                   const location = locations.find((item) => item.id === session.locationId)
                   const displayStatus = sessionDisplayStatus(session, course)
-                  const minimumMet = !course.minimumAttendees || session.attendeeCount >= course.minimumAttendees
+                  const activeBookings = activeBookingCount(session.id)
+                  const minimumMet = !course.minimumAttendees || activeBookings >= course.minimumAttendees
 
                   return (
                     <tr key={session.id} className="border-t border-slate-200">
@@ -206,14 +207,15 @@ export default function CourseFormPage() {
                       </td>
                       <td className="px-4 py-4 text-sm text-slate-700">{session.startTime} - {session.endTime}</td>
                       <td className="px-4 py-4 text-sm text-slate-700">{location?.name}</td>
-                      <td className="px-4 py-4 text-sm text-slate-700">{session.trainer ?? 'To be confirmed'}</td>
+                      <td className="px-4 py-4 text-sm text-slate-700">{trainerNameById(session.trainerId)}</td>
                       <td className="px-4 py-4 text-sm text-slate-700">{sessionCapacity(session)}</td>
-                      <td className="px-4 py-4 text-sm"><Link to={`/admin/sessions/${session.id}/delegates`} className="font-semibold text-cyan-800 hover:text-cyan-950">{session.attendeeCount}</Link></td>
+                      <td className="px-4 py-4 text-sm"><Link to={`/admin/sessions/${session.id}/delegates`} className="font-semibold text-cyan-800 hover:text-cyan-950">{activeBookings}</Link></td>
                       <td className="px-4 py-4 text-sm text-slate-700">{session.availableSeats}</td>
                       <td className="px-4 py-4 text-sm"><Badge label={displayStatus} variant={statusVariant(displayStatus)} /></td>
+                      <td className="px-4 py-4 text-sm text-slate-700"><p>{daysUntilSession(session)} days</p><p className="mt-1 max-w-xs text-xs text-slate-500">{riskExplanation(session, course)}</p></td>
                       <td className="px-4 py-4 text-sm">
                         {course.fundingType === 'unfunded' ? (
-                          <Badge label={minimumMet ? 'minimum met' : 'below minimum'} variant={minimumMet ? 'success' : 'warning'} />
+                          <Badge label={minimumMet ? `${activeBookings}/${course.minimumAttendees} minimum met` : `${activeBookings}/${course.minimumAttendees} below minimum`} variant={minimumMet ? 'success' : 'warning'} />
                         ) : (
                           <span className="text-slate-500">Not required</span>
                         )}

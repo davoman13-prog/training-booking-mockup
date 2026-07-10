@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
@@ -8,11 +8,12 @@ import { bookings, certificates, courses, delegates, locations, sessions } from 
 import { formatDate } from '../../utils/formatters'
 
 export default function CertificatesPage() {
+  const [searchParams] = useSearchParams()
   const delegate = delegates[0]
-  const [search, setSearch] = useState('')
-  const [status, setStatus] = useState('all')
-  const [category, setCategory] = useState('all')
-  const [issueState, setIssueState] = useState('all')
+  const [search, setSearch] = useState(searchParams.get('search') ?? '')
+  const [status, setStatus] = useState(searchParams.get('status') ?? 'all')
+  const [category, setCategory] = useState(searchParams.get('category') ?? 'all')
+  const [issueState, setIssueState] = useState(searchParams.get('issueState') ?? 'all')
   const [sortBy, setSortBy] = useState('issueDateDesc')
 
   const rows = useMemo(() => {
@@ -49,7 +50,7 @@ export default function CertificatesPage() {
 
         return (
           (!query || haystack.includes(query)) &&
-          (status === 'all' || certificate.status === status) &&
+          (status === 'all' || certificate.status === status || (status === 'downloadable' && ['available', 'issued'].includes(certificate.status))) &&
           (category === 'all' || course?.category === category) &&
           (issueState === 'all' ||
             (issueState === 'issued' && Boolean(certificate.issuedDate)) ||
@@ -102,6 +103,7 @@ export default function CertificatesPage() {
               <option value="all">All statuses</option>
               <option value="available">Available</option>
               <option value="issued">Issued</option>
+              <option value="downloadable">Available / issued</option>
               <option value="pending">Pending</option>
             </select>
           </label>

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { locations, sessions } from '../../data/mockData'
 import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
@@ -21,11 +21,12 @@ function capacityBand(capacity: number) {
 }
 
 export default function ManageLocationsPage() {
-  const [searchTerm, setSearchTerm] = useState('')
-  const [activeStatus, setActiveStatus] = useState(anyValue)
-  const [city, setCity] = useState(anyValue)
-  const [capacity, setCapacity] = useState(anyValue)
-  const [sessionAvailability, setSessionAvailability] = useState(anyValue)
+  const [searchParams] = useSearchParams()
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('search') ?? '')
+  const [activeStatus, setActiveStatus] = useState(searchParams.get('status') ?? anyValue)
+  const [city, setCity] = useState(searchParams.get('city') ?? anyValue)
+  const [capacity, setCapacity] = useState(searchParams.get('capacity') ?? anyValue)
+  const [sessionAvailability, setSessionAvailability] = useState(searchParams.get('sessions') ?? anyValue)
   const [sortBy, setSortBy] = useState('name-az')
 
   const cities = useMemo(() => Array.from(new Set(locations.map((location) => location.city))).sort(), [])

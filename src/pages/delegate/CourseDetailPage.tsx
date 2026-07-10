@@ -5,6 +5,8 @@ import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
 import { formatCurrency, formatDate } from '../../utils/formatters'
+import { canBookSession, delegateSessionAvailabilityMessage } from '../../utils/sessionRules'
+import { trainerNameById } from '../../utils/trainerUtils'
 
 export default function CourseDetailPage() {
   const { courseId } = useParams()
@@ -55,7 +57,8 @@ export default function CourseDetailPage() {
           <h2 className="text-xl font-semibold text-slate-950">Choose a session</h2>
           {courseSessions.map((session) => {
             const location = locations.find((item) => item.id === session.locationId)
-            const unavailable = session.status === 'cancelled'
+            const unavailable = !canBookSession(session)
+            const availabilityMessage = delegateSessionAvailabilityMessage(session, course)
 
             return (
               <Card key={session.id}>
@@ -63,25 +66,29 @@ export default function CourseDetailPage() {
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-lg font-semibold text-slate-950">{formatDate(session.startDate)}</p>
-                      <Badge label={session.status} variant={session.status === 'scheduled' ? 'info' : session.status === 'completed' ? 'success' : 'danger'} />
+                      <Badge label={session.status.replace('_', ' ')} variant={session.status === 'scheduled' ? 'info' : session.status === 'completed' ? 'success' : session.status === 'on_hold' ? 'warning' : 'danger'} />
                     </div>
                     <dl className="mt-4 grid gap-3 text-sm text-slate-600 sm:grid-cols-2">
                       <div><dt className="font-semibold text-slate-900">Time</dt><dd>{session.startTime} - {session.endTime}</dd></div>
                       <div><dt className="font-semibold text-slate-900">Location</dt><dd>{location?.name}</dd></div>
-                      <div><dt className="font-semibold text-slate-900">Trainer</dt><dd>{session.trainer ?? 'To be confirmed'}</dd></div>
+                      <div><dt className="font-semibold text-slate-900">Trainer</dt><dd>{trainerNameById(session.trainerId)}</dd></div>
                       <div><dt className="font-semibold text-slate-900">Capacity</dt><dd>{session.attendeeCount + session.availableSeats} capacity / {session.availableSeats} spaces remaining</dd></div>
                       <div><dt className="font-semibold text-slate-900">Funding</dt><dd>{course.fundingType === 'funded' ? 'Funded - no payment required' : `Unfunded - ${formatCurrency(course.price ?? 0)}`}</dd></div>
                       <div><dt className="font-semibold text-slate-900">Minimum attendees</dt><dd>{course.fundingType === 'unfunded' ? course.minimumAttendees : 'Not applicable'}</dd></div>
                     </dl>
-                    {course.status === 'at_risk' || course.status === 'awaiting_minimum' ? (
+                    {availabilityMessage ? (
                       <div className="mt-4 rounded-2xl bg-amber-50 p-3 text-sm text-amber-800">
-                        {course.status === 'at_risk' ? 'This session is currently at risk of cancellation.' : 'This session is awaiting minimum numbers.'}
+                        {availabilityMessage}
                       </div>
                     ) : null}
                   </div>
-                  <Link to={`/delegate/book/${course.id}/${session.id}`}>
-                    <Button disabled={unavailable}>Book this session</Button>
-                  </Link>
+                  {unavailable ? (
+                    <Button disabled>{session.status === 'on_hold' ? 'On Hold - no bookings' : 'Booking unavailable'}</Button>
+                  ) : (
+                    <Link to={`/delegate/book/${course.id}/${session.id}`}>
+                      <Button>Book this session</Button>
+                    </Link>
+                  )}
                 </div>
               </Card>
             )

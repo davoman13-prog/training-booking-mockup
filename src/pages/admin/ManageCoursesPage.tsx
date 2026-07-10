@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { courses, sessions } from '../../data/mockData'
 import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
@@ -41,11 +41,12 @@ function durationSortValue(duration: string) {
 }
 
 export default function ManageCoursesPage() {
-  const [searchTerm, setSearchTerm] = useState('')
-  const [category, setCategory] = useState(anyValue)
-  const [funding, setFunding] = useState(anyValue)
-  const [active, setActive] = useState(anyValue)
-  const [status, setStatus] = useState(anyValue)
+  const [searchParams] = useSearchParams()
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('search') ?? '')
+  const [category, setCategory] = useState(searchParams.get('category') ?? anyValue)
+  const [funding, setFunding] = useState(searchParams.get('funding') ?? anyValue)
+  const [active, setActive] = useState(searchParams.get('active') ?? anyValue)
+  const [status, setStatus] = useState(searchParams.get('status') ?? anyValue)
   const [sortBy, setSortBy] = useState('name-az')
 
   const categories = useMemo(() => Array.from(new Set(courses.map((course) => course.category))).sort(), [])

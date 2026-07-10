@@ -3,6 +3,7 @@ import { bookings, certificates, courses, delegates, invoices, locations, sessio
 import Badge from '../../components/ui/Badge'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
+import SummaryLinkCard from '../../components/ui/SummaryLinkCard'
 import { formatCurrency, formatDate } from '../../utils/formatters'
 
 function bookingVariant(status: string) {
@@ -30,11 +31,17 @@ export default function DelegateDashboardPage() {
       return { booking, course, session, location, invoice, certificate }
     })
 
+  const delegateBookings = bookings.filter((booking) => booking.delegateId === delegate.id)
+  const delegateInvoices = invoices.filter((invoice) => invoice.delegateId === delegate.id)
+  const delegateCertificates = certificates.filter((certificate) => certificate.delegateId === delegate.id)
   const summaryCards = [
-    { label: 'Total courses booked', value: delegate.bookingIds.length.toString(), detail: 'Mock delegate history' },
-    { label: 'Invoices outstanding', value: invoices.filter((invoice) => invoice.status === 'unpaid' || invoice.status === 'overdue').length.toString(), detail: 'Only shown for unfunded courses' },
-    { label: 'Certificates available', value: certificates.filter((certificate) => certificate.status === 'available').length.toString(), detail: 'Mock downloads only' },
-    { label: 'Completed courses', value: bookings.filter((booking) => booking.status === 'completed').length.toString(), detail: 'Attendance marked in mock data' },
+    { label: 'Total courses booked', value: delegateBookings.length, detail: 'All booking records', to: '/delegate/bookings' },
+    { label: 'Upcoming courses', value: delegateBookings.filter((booking) => sessions.find((session) => session.id === booking.sessionId)?.status === 'scheduled' && booking.status !== 'cancelled').length, detail: 'Scheduled bookings', to: '/delegate/bookings?stage=upcoming' },
+    { label: 'Completed courses', value: delegateBookings.filter((booking) => booking.status === 'completed' || sessions.find((session) => session.id === booking.sessionId)?.status === 'completed').length, detail: 'Attendance marked in mock data', to: '/delegate/bookings?stage=completed' },
+    { label: 'Certificates available', value: delegateCertificates.filter((certificate) => certificate.status === 'available' || certificate.status === 'issued').length, detail: 'Available or issued downloads', to: '/delegate/certificates?status=downloadable' },
+    { label: 'Outstanding invoices', value: delegateInvoices.filter((invoice) => invoice.status === 'unpaid' || invoice.status === 'overdue').length, detail: 'Unpaid and overdue', to: '/delegate/invoices?paymentState=outstanding' },
+    { label: 'Paid invoices', value: delegateInvoices.filter((invoice) => invoice.status === 'paid').length, detail: 'Paid invoice records', to: '/delegate/invoices?status=paid' },
+    { label: 'Cancelled bookings', value: delegateBookings.filter((booking) => booking.status === 'cancelled' || sessions.find((session) => session.id === booking.sessionId)?.status === 'cancelled').length, detail: 'Cancelled booking records', to: '/delegate/bookings?stage=cancelled' },
   ]
 
   return (
@@ -144,13 +151,9 @@ export default function DelegateDashboardPage() {
         </Card>
       </div>
 
-      <section className="grid gap-4 md:grid-cols-4">
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {summaryCards.map((metric) => (
-          <Card key={metric.label}>
-            <p className="text-sm text-slate-500">{metric.label}</p>
-            <p className="mt-3 text-3xl font-semibold text-slate-950">{metric.value}</p>
-            <p className="mt-2 text-sm text-slate-600">{metric.detail}</p>
-          </Card>
+          <SummaryLinkCard key={metric.label} label={metric.label} value={metric.value} detail={metric.detail} to={metric.to} />
         ))}
       </section>
       <section className="space-y-4">

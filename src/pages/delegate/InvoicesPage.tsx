@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
@@ -16,12 +16,13 @@ function invoiceVariant(status: string): BadgeVariant {
 }
 
 export default function InvoicesPage() {
+  const [searchParams] = useSearchParams()
   const delegate = delegates[0]
-  const [search, setSearch] = useState('')
-  const [status, setStatus] = useState('all')
-  const [paymentState, setPaymentState] = useState('all')
-  const [fundingType, setFundingType] = useState('all')
-  const [category, setCategory] = useState('all')
+  const [search, setSearch] = useState(searchParams.get('search') ?? '')
+  const [status, setStatus] = useState(searchParams.get('status') ?? 'all')
+  const [paymentState, setPaymentState] = useState(searchParams.get('paymentState') ?? 'all')
+  const [fundingType, setFundingType] = useState(searchParams.get('funding') ?? 'all')
+  const [category, setCategory] = useState(searchParams.get('category') ?? 'all')
   const [sortBy, setSortBy] = useState('dueDateAsc')
 
   const rows = useMemo(() => {
@@ -59,7 +60,7 @@ export default function InvoicesPage() {
         return (
           (!query || haystack.includes(query)) &&
           (status === 'all' || invoice.status === status) &&
-          (paymentState === 'all' || paymentState === paymentGroup) &&
+          (paymentState === 'all' || paymentState === paymentGroup || (paymentState === 'outstanding' && ['unpaid', 'overdue'].includes(invoice.status))) &&
           (fundingType === 'all' || course?.fundingType === fundingType) &&
           (category === 'all' || course?.category === category)
         )
@@ -113,6 +114,7 @@ export default function InvoicesPage() {
               <option value="all">All statuses</option>
               <option value="paid">Paid</option>
               <option value="unpaid">Unpaid</option>
+              <option value="outstanding">Outstanding</option>
               <option value="overdue">Overdue</option>
               <option value="not_required">Not required</option>
             </select>
