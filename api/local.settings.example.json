@@ -1,0 +1,8 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "node",
+    "SQL_CONNECTION_STRING": "Server=localhost,1433;Database=TrainingBooking;User Id=sa;Password=ChangeMe!123;TrustServerCertificate=true;Encrypt=false"
+  }
+}
