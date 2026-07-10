@@ -3,11 +3,11 @@ import sql, { config as SqlConfig, ConnectionPool } from 'mssql'
 
 let poolPromise: Promise<ConnectionPool> | null = null
 
-async function createConfig(): Promise<SqlConfig> {
+async function createConfig(): Promise<SqlConfig | string> {
   const connectionString = process.env.SQL_CONNECTION_STRING
 
   if (connectionString) {
-    return { connectionString }
+    return connectionString
   }
 
   const server = process.env.AZURE_SQL_SERVER
