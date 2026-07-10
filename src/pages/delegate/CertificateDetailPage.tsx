@@ -4,6 +4,7 @@ import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
 import { bookings, certificates, courses, delegates, locations, sessions } from '../../data/mockData'
 import { formatDate } from '../../utils/formatters'
+import { trainerNameById } from '../../utils/trainerUtils'
 
 export default function CertificateDetailPage() {
   const { certificateId } = useParams()
@@ -41,7 +42,7 @@ export default function CertificateDetailPage() {
           <div><dt className="font-semibold text-slate-900">Issue date</dt><dd className="text-slate-600">{certificate.issuedDate ? formatDate(certificate.issuedDate) : 'Pending'}</dd></div>
           <div><dt className="font-semibold text-slate-900">Status</dt><dd><Badge label={certificate.status} variant={certificate.status === 'available' || certificate.status === 'issued' ? 'success' : 'warning'} /></dd></div>
           <div><dt className="font-semibold text-slate-900">Location</dt><dd className="text-slate-600">{location?.name}</dd></div>
-          <div><dt className="font-semibold text-slate-900">Trainer</dt><dd className="text-slate-600">{session?.trainer ?? 'To be confirmed'}</dd></div>
+          <div><dt className="font-semibold text-slate-900">Trainer</dt><dd className="text-slate-600">{trainerNameById(session?.trainerId)}</dd></div>
           <div><dt className="font-semibold text-slate-900">Booking reference</dt><dd className="text-slate-600">{booking?.id}</dd></div>
         </dl>
       </Card>

@@ -1,30 +1,127 @@
 import { FormEvent, useMemo, useState } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router-dom'
-import { bookings, certificates, courses, invoices, locations, sessions } from '../../data/mockData'
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { bookings, certificates, courses, invoices, locations, sessions, trainers } from '../../data/mockData'
 import Badge from '../../components/ui/Badge'
 import Card from '../../components/ui/Card'
 import Input from '../../components/ui/Input'
 import Select from '../../components/ui/Select'
 import Button from '../../components/ui/Button'
 import { formatDate } from '../../utils/formatters'
+import { findTrainer, trainerNameById } from '../../utils/trainerUtils'
 import Table from '../../components/ui/Table'
 import { allDelegates } from './delegateUtils'
+import { activeBookingCount, daysUntilSession, riskExplanation, sessionDisplayStatus, statusVariant } from '../../utils/sessionRules'
+import { SessionStatus } from '../../types'
+
+interface SessionFormState {
+  courseId: string
+  locationId: string
+  trainerId: string
+  startDate: string
+  endDate: string
+  startTime: string
+  endTime: string
+  capacity: string
+  attendeeCount: string
+  availableSeats: string
+  status: SessionStatus
+}
+
+const draftStorageKey = 'kalu-session-form-draft'
+
+function readDraft() {
+  const raw = window.sessionStorage.getItem(draftStorageKey)
+  if (!raw) return null
+
+  try {
+    return JSON.parse(raw) as SessionFormState
+  } catch {
+    window.sessionStorage.removeItem(draftStorageKey)
+    return null
+  }
+}
 
 export default function SessionFormPage() {
   const { sessionId } = useParams()
   const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
+  const location = useLocation()
   const preselectedCourseId = searchParams.get('courseId') ?? undefined
+  const returnedTrainerId = searchParams.get('trainerId') ?? undefined
   const session = useMemo(() => sessions.find((item) => item.id === sessionId), [sessionId])
-  const course = courses.find((item) => item.id === (session?.courseId ?? preselectedCourseId))
   const editing = Boolean(session)
   const [saved, setSaved] = useState(false)
+  const [saveError, setSaveError] = useState('')
   const capacity = session ? session.attendeeCount + session.availableSeats : 0
+  const [formState, setFormState] = useState<SessionFormState>(() => {
+    const draft = readDraft()
+    if (draft && returnedTrainerId) {
+      window.sessionStorage.removeItem(draftStorageKey)
+      return { ...draft, trainerId: returnedTrainerId }
+    }
+
+    return {
+      courseId: session?.courseId ?? preselectedCourseId ?? courses[0]?.id ?? '',
+      locationId: session?.locationId ?? locations[0]?.id ?? '',
+      trainerId: returnedTrainerId ?? session?.trainerId ?? '',
+      startDate: session?.startDate ?? '',
+      endDate: session?.endDate ?? '',
+      startTime: session?.startTime ?? '',
+      endTime: session?.endTime ?? '',
+      capacity: session ? capacity.toString() : '',
+      attendeeCount: session?.attendeeCount.toString() ?? '',
+      availableSeats: session?.availableSeats.toString() ?? '',
+      status: session?.status ?? 'scheduled',
+    }
+  })
+  const course = courses.find((item) => item.id === formState.courseId)
   const sessionBookings = session ? bookings.filter((booking) => booking.sessionId === session.id) : []
   const spacesRemaining = session ? Math.max(capacity - sessionBookings.length, 0) : 0
+  const selectedTrainer = findTrainer(formState.trainerId)
+  const trainerInvalidForCourse = Boolean(formState.trainerId && (!selectedTrainer || selectedTrainer.status !== 'active' || !selectedTrainer.approvedCourseIds.includes(formState.courseId)))
+  const trainerOptions = trainers
+    .filter((trainer) => trainer.status === 'active' && trainer.approvedCourseIds.includes(formState.courseId))
+    .sort((a, b) => {
+      return trainerNameById(a.id).localeCompare(trainerNameById(b.id))
+    })
+
+  function updateForm<K extends keyof SessionFormState>(key: K, value: SessionFormState[K]) {
+    setFormState((current) => {
+      if (key === 'courseId') {
+        const nextCourseId = value as string
+        const currentTrainer = findTrainer(current.trainerId)
+        const trainerStillValid = currentTrainer?.status === 'active' && currentTrainer.approvedCourseIds.includes(nextCourseId)
+        return { ...current, courseId: nextCourseId, trainerId: trainerStillValid ? current.trainerId : '' }
+      }
+
+      return { ...current, [key]: value }
+    })
+  }
+
+  function persistDraft() {
+    window.sessionStorage.setItem(draftStorageKey, JSON.stringify(formState))
+  }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (trainerInvalidForCourse) {
+      setSaveError('Choose an active trainer approved for the selected course before saving this session.')
+      setSaved(false)
+      return
+    }
+    setSaveError('')
     setSaved(true)
+  }
+
+  function openAddTrainer() {
+    persistDraft()
+    navigate(`/admin/trainers/new?returnTo=${encodeURIComponent(`${location.pathname}${location.search}`)}`)
+  }
+
+  function openEditTrainer() {
+    if (!formState.trainerId) return
+    persistDraft()
+    navigate(`/admin/trainers/${formState.trainerId}/edit?returnTo=${encodeURIComponent(`${location.pathname}${location.search}`)}`)
   }
 
   return (
@@ -47,6 +144,9 @@ export default function SessionFormPage() {
           {course ? <Link to={`/admin/courses/${course.id}/edit`} className="ml-2 underline">Return to course page</Link> : null}
         </div>
       ) : null}
+      {saveError ? (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800">{saveError}</div>
+      ) : null}
       {course && !editing ? (
         <Card>
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-cyan-700">Selected course</p>
@@ -59,56 +159,73 @@ export default function SessionFormPage() {
           <div className="grid gap-6 lg:grid-cols-3">
             <div>
               <label className="text-sm font-semibold text-slate-900">Course</label>
-              <Select defaultValue={session?.courseId ?? preselectedCourseId ?? courses[0]?.id}>
+              <Select value={formState.courseId} onChange={(event) => updateForm('courseId', event.target.value)}>
                 {courses.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
               </Select>
             </div>
             <div>
               <label className="text-sm font-semibold text-slate-900">Location</label>
-              <Select defaultValue={session?.locationId ?? locations[0]?.id}>
+              <Select value={formState.locationId} onChange={(event) => updateForm('locationId', event.target.value)}>
                 {locations.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}
               </Select>
             </div>
             <div>
               <label className="text-sm font-semibold text-slate-900">Trainer</label>
-              <Input defaultValue={session?.trainer ?? ''} placeholder="Trainer name" />
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Select value={formState.trainerId} onChange={(event) => updateForm('trainerId', event.target.value)}>
+                  <option value="">Select active approved trainer</option>
+                  {trainerOptions.map((trainer) => {
+                    return (
+                      <option key={trainer.id} value={trainer.id}>
+                        {trainerNameById(trainer.id)} (approved)
+                      </option>
+                    )
+                  })}
+                </Select>
+                <Button type="button" variant="secondary" onClick={openAddTrainer} className="shrink-0">Add New Trainer</Button>
+                <Button type="button" variant="ghost" onClick={openEditTrainer} disabled={!formState.trainerId} className="shrink-0">Edit Selected</Button>
+              </div>
+              {trainerInvalidForCourse ? (
+                <p className="mt-2 text-xs font-semibold text-amber-700">This existing trainer assignment is invalid for the selected course. Choose an active approved trainer before saving.</p>
+              ) : null}
             </div>
           </div>
           <div className="grid gap-6 lg:grid-cols-4">
             <div>
               <label className="text-sm font-semibold text-slate-900">Start date</label>
-              <Input type="date" defaultValue={session?.startDate ?? ''} />
+              <Input type="date" value={formState.startDate} onChange={(event) => updateForm('startDate', event.target.value)} />
             </div>
             <div>
               <label className="text-sm font-semibold text-slate-900">End date</label>
-              <Input type="date" defaultValue={session?.endDate ?? ''} />
+              <Input type="date" value={formState.endDate} onChange={(event) => updateForm('endDate', event.target.value)} />
             </div>
             <div>
               <label className="text-sm font-semibold text-slate-900">Start time</label>
-              <Input type="time" defaultValue={session?.startTime ?? ''} />
+              <Input type="time" value={formState.startTime} onChange={(event) => updateForm('startTime', event.target.value)} />
             </div>
             <div>
               <label className="text-sm font-semibold text-slate-900">End time</label>
-              <Input type="time" defaultValue={session?.endTime ?? ''} />
+              <Input type="time" value={formState.endTime} onChange={(event) => updateForm('endTime', event.target.value)} />
             </div>
           </div>
           <div className="grid gap-6 lg:grid-cols-4">
             <div>
               <label className="text-sm font-semibold text-slate-900">Capacity</label>
-              <Input type="number" defaultValue={session ? capacity.toString() : ''} />
+              <Input type="number" value={formState.capacity} onChange={(event) => updateForm('capacity', event.target.value)} />
             </div>
             <div>
               <label className="text-sm font-semibold text-slate-900">Booked count</label>
-              <Input type="number" defaultValue={session?.attendeeCount.toString() ?? ''} />
+              <Input type="number" value={formState.attendeeCount} onChange={(event) => updateForm('attendeeCount', event.target.value)} />
             </div>
             <div>
               <label className="text-sm font-semibold text-slate-900">Spaces remaining</label>
-              <Input type="number" defaultValue={session?.availableSeats.toString() ?? ''} />
+              <Input type="number" value={formState.availableSeats} onChange={(event) => updateForm('availableSeats', event.target.value)} />
             </div>
             <div>
               <label className="text-sm font-semibold text-slate-900">Status</label>
-              <Select defaultValue={session?.status ?? 'scheduled'}>
+              <Select value={formState.status} onChange={(event) => updateForm('status', event.target.value as SessionFormState['status'])}>
                 <option value="scheduled">Open / scheduled</option>
+                <option value="on_hold">On Hold</option>
                 <option value="completed">Completed</option>
                 <option value="cancelled">Cancelled</option>
               </Select>
@@ -126,8 +243,18 @@ export default function SessionFormPage() {
             <Card><p className="text-sm text-slate-500">Capacity</p><p className="mt-2 text-3xl font-semibold text-slate-950">{capacity}</p></Card>
             <Card><p className="text-sm text-slate-500">Booked</p><p className="mt-2 text-3xl font-semibold text-slate-950">{sessionBookings.length}</p></Card>
             <Card><p className="text-sm text-slate-500">Spaces</p><p className="mt-2 text-3xl font-semibold text-slate-950">{spacesRemaining}</p></Card>
-            <Card><p className="text-sm text-slate-500">Status</p><p className="mt-2"><Badge label={session.status} variant={session.status === 'cancelled' ? 'danger' : session.status === 'completed' ? 'success' : 'info'} /></p></Card>
+            <Card><p className="text-sm text-slate-500">Status</p><p className="mt-2"><Badge label={sessionDisplayStatus(session, course)} variant={statusVariant(sessionDisplayStatus(session, course))} /></p></Card>
           </div>
+
+          <Card>
+            <h2 className="text-xl font-semibold text-slate-950">Risk and minimum numbers</h2>
+            <dl className="mt-4 grid gap-4 text-sm sm:grid-cols-3">
+              <div><dt className="font-semibold text-slate-900">Active bookings</dt><dd className="text-slate-600">{activeBookingCount(session.id)}</dd></div>
+              <div><dt className="font-semibold text-slate-900">Minimum attendees</dt><dd className="text-slate-600">{course?.minimumAttendees ?? 'Not required'}</dd></div>
+              <div><dt className="font-semibold text-slate-900">Days until session</dt><dd className="text-slate-600">{daysUntilSession(session)}</dd></div>
+            </dl>
+            <p className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm text-slate-700">{riskExplanation(session, course)}</p>
+          </Card>
 
           <Card>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

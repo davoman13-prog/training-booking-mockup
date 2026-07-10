@@ -5,6 +5,8 @@ export type CourseStatus = 'open' | 'awaiting_minimum' | 'at_risk' | 'cancelled'
 export type BookingStatus = 'confirmed' | 'pending' | 'cancelled' | 'completed'
 export type InvoiceStatus = 'paid' | 'unpaid' | 'overdue' | 'not_required'
 export type CertificateStatus = 'available' | 'pending' | 'issued'
+export type TrainerStatus = 'active' | 'inactive'
+export type SessionStatus = 'scheduled' | 'completed' | 'cancelled' | 'on_hold'
 
 export interface Course {
   id: string
@@ -42,6 +44,26 @@ export interface Location {
   notes?: string
 }
 
+export interface Trainer {
+  id: string
+  firstName: string
+  lastName: string
+  email: string
+  phone: string
+  alternativePhone?: string
+  organisation: string
+  addressLine1: string
+  addressLine2?: string
+  townCity: string
+  county: string
+  postcode: string
+  notes: string
+  status: TrainerStatus
+  approvedCourseIds: string[]
+  createdDate: string
+  updatedDate: string
+}
+
 export interface Session {
   id: string
   courseId: string
@@ -50,8 +72,8 @@ export interface Session {
   endDate: string
   startTime: string
   endTime: string
-  trainer?: string
-  status: 'scheduled' | 'completed' | 'cancelled'
+  trainerId?: string
+  status: SessionStatus
   availableSeats: number
   attendeeCount: number
 }

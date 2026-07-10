@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
@@ -12,15 +12,16 @@ import { allDelegates, bookedCourseNames, delegateStats } from './delegateUtils'
 const anyValue = 'any'
 
 export default function DelegatesPage() {
+  const [searchParams] = useSearchParams()
   const delegates = allDelegates()
-  const [searchTerm, setSearchTerm] = useState('')
-  const [accountStatus, setAccountStatus] = useState(anyValue)
-  const [organisation, setOrganisation] = useState(anyValue)
-  const [hasUpcoming, setHasUpcoming] = useState(anyValue)
-  const [hasCompleted, setHasCompleted] = useState(anyValue)
-  const [hasInvoices, setHasInvoices] = useState(anyValue)
-  const [hasCertificates, setHasCertificates] = useState(anyValue)
-  const [hasCancelled, setHasCancelled] = useState(anyValue)
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('search') ?? '')
+  const [accountStatus, setAccountStatus] = useState(searchParams.get('status') ?? anyValue)
+  const [organisation, setOrganisation] = useState(searchParams.get('organisation') ?? anyValue)
+  const [hasUpcoming, setHasUpcoming] = useState(searchParams.get('hasUpcoming') ?? anyValue)
+  const [hasCompleted, setHasCompleted] = useState(searchParams.get('hasCompleted') ?? anyValue)
+  const [hasInvoices, setHasInvoices] = useState(searchParams.get('hasInvoices') ?? anyValue)
+  const [hasCertificates, setHasCertificates] = useState(searchParams.get('hasCertificates') ?? anyValue)
+  const [hasCancelled, setHasCancelled] = useState(searchParams.get('hasCancelled') ?? anyValue)
   const [sortBy, setSortBy] = useState('name')
 
   const organisations = useMemo(() => Array.from(new Set(delegates.map((delegate) => delegate.organisation))).sort(), [delegates])

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { bookings, certificates, courses, delegates } from '../../data/mockData'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
@@ -21,12 +21,13 @@ function certificateVariant(status: string) {
 }
 
 export default function CertificateManagementPage() {
-  const [searchTerm, setSearchTerm] = useState('')
-  const [status, setStatus] = useState(anyValue)
-  const [courseId, setCourseId] = useState(anyValue)
-  const [issueState, setIssueState] = useState(anyValue)
-  const [attendanceStatus, setAttendanceStatus] = useState(anyValue)
-  const [emailStatus, setEmailStatus] = useState(anyValue)
+  const [searchParams] = useSearchParams()
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('search') ?? '')
+  const [status, setStatus] = useState(searchParams.get('status') ?? anyValue)
+  const [courseId, setCourseId] = useState(searchParams.get('courseId') ?? anyValue)
+  const [issueState, setIssueState] = useState(searchParams.get('issueState') ?? anyValue)
+  const [attendanceStatus, setAttendanceStatus] = useState(searchParams.get('attendanceStatus') ?? anyValue)
+  const [emailStatus, setEmailStatus] = useState(searchParams.get('emailStatus') ?? anyValue)
   const [sortBy, setSortBy] = useState('issue-newest')
 
   const filteredCertificates = useMemo(() => {
@@ -48,7 +49,7 @@ export default function CertificateManagementPage() {
         ].join(' ').toLowerCase()
 
         const matchesSearch = !normalisedSearch || searchableText.includes(normalisedSearch)
-        const matchesStatus = status === anyValue || certificate.status === status
+        const matchesStatus = status === anyValue || certificate.status === status || (status === 'downloadable' && ['available', 'issued'].includes(certificate.status))
         const matchesCourse = courseId === anyValue || certificate.courseId === courseId
         const matchesIssueState =
           issueState === anyValue ||
@@ -106,6 +107,7 @@ export default function CertificateManagementPage() {
               <option value={anyValue}>All statuses</option>
               <option value="available">Available</option>
               <option value="issued">Issued</option>
+              <option value="downloadable">Available / issued</option>
               <option value="pending">Pending</option>
             </Select>
           </div>

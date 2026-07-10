@@ -8,6 +8,8 @@ import Input from '../../components/ui/Input'
 import Textarea from '../../components/ui/Textarea'
 import Select from '../../components/ui/Select'
 import { formatCurrency, formatDate } from '../../utils/formatters'
+import { canBookSession, delegateSessionAvailabilityMessage } from '../../utils/sessionRules'
+import { trainerNameById } from '../../utils/trainerUtils'
 
 export default function BookingFormPage() {
   const { courseId, sessionId } = useParams()
@@ -28,10 +30,21 @@ export default function BookingFormPage() {
   }
 
   const delegate = delegates.find((item) => item.id === delegateId)
+  const bookingBlocked = !canBookSession(selectedSession)
+  const blockedMessage =
+    selectedSession.status === 'on_hold'
+      ? 'This session is On Hold - no new bookings can be made. Existing bookings remain visible.'
+      : selectedSession.status === 'cancelled'
+      ? 'This session has been cancelled and cannot accept new bookings.'
+      : selectedSession.status === 'completed'
+      ? 'This session has completed and cannot accept new bookings.'
+      : selectedSession.availableSeats <= 0
+      ? 'This session is full and cannot accept new bookings.'
+      : ''
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!course || !selectedSession) return
+    if (!course || !selectedSession || bookingBlocked) return
     navigate(`/delegate/confirmation?courseId=${course.id}&sessionId=${selectedSession.id}`)
   }
 
@@ -49,6 +62,9 @@ export default function BookingFormPage() {
       </div>
 
       <Card>
+        {bookingBlocked ? (
+          <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800">{blockedMessage}</div>
+        ) : null}
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <h2 className="text-xl font-semibold text-slate-950">Selected session</h2>
@@ -56,10 +72,13 @@ export default function BookingFormPage() {
               <div><dt className="font-semibold text-slate-900">Date</dt><dd>{formatDate(selectedSession.startDate)}</dd></div>
               <div><dt className="font-semibold text-slate-900">Time</dt><dd>{selectedSession.startTime} - {selectedSession.endTime}</dd></div>
               <div><dt className="font-semibold text-slate-900">Location</dt><dd>{selectedLocation?.name}</dd></div>
-              <div><dt className="font-semibold text-slate-900">Trainer</dt><dd>{selectedSession.trainer ?? 'To be confirmed'}</dd></div>
+              <div><dt className="font-semibold text-slate-900">Trainer</dt><dd>{trainerNameById(selectedSession.trainerId)}</dd></div>
               <div><dt className="font-semibold text-slate-900">Spaces remaining</dt><dd>{selectedSession.availableSeats}</dd></div>
               <div><dt className="font-semibold text-slate-900">Funding</dt><dd>{course.fundingType === 'funded' ? 'Funded - no invoice' : `Unfunded - ${formatCurrency(course.price ?? 0)}`}</dd></div>
             </dl>
+            {delegateSessionAvailabilityMessage(selectedSession, course) ? (
+              <p className="mt-4 rounded-2xl bg-amber-50 p-3 text-sm text-amber-800">{delegateSessionAvailabilityMessage(selectedSession, course)}</p>
+            ) : null}
             {course.fundingType === 'unfunded' ? (
               <p className="mt-4 rounded-2xl bg-amber-50 p-3 text-sm text-amber-800">
                 Minimum attendees: {course.minimumAttendees}. Invoice is only mocked when minimum numbers are met.
@@ -114,8 +133,8 @@ export default function BookingFormPage() {
           </label>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="text-sm text-slate-600">No real booking, payment, email, or PDF will be created.</div>
-            <Button type="submit" disabled={!termsAccepted}>
-              Confirm booking
+            <Button type="submit" disabled={!termsAccepted || bookingBlocked}>
+              {bookingBlocked ? 'Booking unavailable' : 'Confirm booking'}
             </Button>
           </div>
         </form>

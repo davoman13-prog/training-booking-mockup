@@ -5,6 +5,7 @@ import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
 import Table from '../../components/ui/Table'
 import { formatCurrency, formatDate } from '../../utils/formatters'
+import { trainerNameById } from '../../utils/trainerUtils'
 import { allDelegates } from './delegateUtils'
 
 export default function SessionDelegatesPage() {
@@ -35,7 +36,7 @@ export default function SessionDelegatesPage() {
 
       <div className="grid gap-4 lg:grid-cols-5">
         <Card><p className="text-sm text-slate-500">Location</p><p className="mt-2 text-sm font-semibold text-slate-950">{location?.name}</p></Card>
-        <Card><p className="text-sm text-slate-500">Trainer</p><p className="mt-2 text-sm font-semibold text-slate-950">{session.trainer ?? 'To be confirmed'}</p></Card>
+        <Card><p className="text-sm text-slate-500">Trainer</p><p className="mt-2 text-sm font-semibold text-slate-950">{trainerNameById(session.trainerId)}</p></Card>
         <Card><p className="text-sm text-slate-500">Capacity</p><p className="mt-2 text-3xl font-semibold text-slate-950">{capacity}</p></Card>
         <Card><p className="text-sm text-slate-500">Booked</p><p className="mt-2 text-3xl font-semibold text-slate-950">{sessionBookings.length}</p></Card>
         <Card><p className="text-sm text-slate-500">Spaces</p><p className="mt-2 text-3xl font-semibold text-slate-950">{Math.max(capacity - sessionBookings.length, 0)}</p></Card>

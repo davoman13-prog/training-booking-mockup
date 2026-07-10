@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { bookings, courses, delegates, locations, sessions } from '../../data/mockData'
+import { Link, useSearchParams } from 'react-router-dom'
+import { bookings, courses, delegates, locations, sessions, trainers } from '../../data/mockData'
 import Card from '../../components/ui/Card'
 import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
@@ -8,20 +8,20 @@ import Input from '../../components/ui/Input'
 import Select from '../../components/ui/Select'
 import Table from '../../components/ui/Table'
 import { formatDate } from '../../utils/formatters'
+import { trainerNameById } from '../../utils/trainerUtils'
 
 const anyValue = 'any'
 
 export default function AttendancePage() {
-  const [searchTerm, setSearchTerm] = useState('')
-  const [courseId, setCourseId] = useState(anyValue)
-  const [sessionId, setSessionId] = useState(anyValue)
-  const [locationId, setLocationId] = useState(anyValue)
-  const [trainer, setTrainer] = useState(anyValue)
-  const [attendanceStatus, setAttendanceStatus] = useState(anyValue)
-  const [timing, setTiming] = useState(anyValue)
+  const [searchParams] = useSearchParams()
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('search') ?? '')
+  const [courseId, setCourseId] = useState(searchParams.get('courseId') ?? anyValue)
+  const [sessionId, setSessionId] = useState(searchParams.get('sessionId') ?? anyValue)
+  const [locationId, setLocationId] = useState(searchParams.get('locationId') ?? anyValue)
+  const [trainerId, setTrainerId] = useState(searchParams.get('trainerId') ?? anyValue)
+  const [attendanceStatus, setAttendanceStatus] = useState(searchParams.get('attendanceStatus') ?? anyValue)
+  const [timing, setTiming] = useState(searchParams.get('timing') ?? anyValue)
   const [sortBy, setSortBy] = useState('session-date')
-
-  const trainers = useMemo(() => Array.from(new Set(sessions.map((session) => session.trainer).filter(Boolean))).sort(), [])
 
   const filteredRows = useMemo(() => {
     const normalisedSearch = searchTerm.trim().toLowerCase()
@@ -33,13 +33,14 @@ export default function AttendancePage() {
         const session = sessions.find((item) => item.id === booking.sessionId)
         const location = locations.find((item) => item.id === booking.locationId)
         const attendanceLabel = booking.attendanceMarked ? 'attended marked present' : 'pending not marked'
-        const searchableText = [delegate?.name, course?.title, session?.startDate, location?.name, session?.trainer, attendanceLabel].join(' ').toLowerCase()
+        const trainerName = trainerNameById(session?.trainerId)
+        const searchableText = [delegate?.name, course?.title, session?.startDate, location?.name, trainerName, attendanceLabel].join(' ').toLowerCase()
 
         const matchesSearch = !normalisedSearch || searchableText.includes(normalisedSearch)
         const matchesCourse = courseId === anyValue || booking.courseId === courseId
         const matchesSession = sessionId === anyValue || booking.sessionId === sessionId
         const matchesLocation = locationId === anyValue || booking.locationId === locationId
-        const matchesTrainer = trainer === anyValue || session?.trainer === trainer
+        const matchesTrainer = trainerId === anyValue || session?.trainerId === trainerId
         const matchesAttendance = attendanceStatus === anyValue || (attendanceStatus === 'attended' ? booking.attendanceMarked : !booking.attendanceMarked)
         const matchesTiming =
           timing === anyValue ||
@@ -66,16 +67,16 @@ export default function AttendancePage() {
         if (sortBy === 'location') return (locationA?.name ?? '').localeCompare(locationB?.name ?? '')
         return 0
       })
-  }, [attendanceStatus, courseId, locationId, searchTerm, sessionId, sortBy, timing, trainer])
+  }, [attendanceStatus, courseId, locationId, searchTerm, sessionId, sortBy, timing, trainerId])
 
-  const activeFilterCount = [searchTerm.trim(), courseId !== anyValue, sessionId !== anyValue, locationId !== anyValue, trainer !== anyValue, attendanceStatus !== anyValue, timing !== anyValue].filter(Boolean).length
+  const activeFilterCount = [searchTerm.trim(), courseId !== anyValue, sessionId !== anyValue, locationId !== anyValue, trainerId !== anyValue, attendanceStatus !== anyValue, timing !== anyValue].filter(Boolean).length
 
   function clearFilters() {
     setSearchTerm('')
     setCourseId(anyValue)
     setSessionId(anyValue)
     setLocationId(anyValue)
-    setTrainer(anyValue)
+    setTrainerId(anyValue)
     setAttendanceStatus(anyValue)
     setTiming(anyValue)
     setSortBy('session-date')
@@ -120,9 +121,9 @@ export default function AttendancePage() {
           </div>
           <div>
             <label className="text-sm font-semibold text-slate-900">Trainer</label>
-            <Select value={trainer} onChange={(event) => setTrainer(event.target.value)}>
+            <Select value={trainerId} onChange={(event) => setTrainerId(event.target.value)}>
               <option value={anyValue}>All trainers</option>
-              {trainers.map((item) => <option key={item} value={item}>{item}</option>)}
+              {trainers.map((item) => <option key={item.id} value={item.id}>{trainerNameById(item.id)}</option>)}
             </Select>
           </div>
           <div>
@@ -155,7 +156,7 @@ export default function AttendancePage() {
           {activeFilterCount > 0 ? <Badge label={`${activeFilterCount} active filters`} variant="info" /> : null}
           {searchTerm.trim() ? <Badge label={`Search: ${searchTerm.trim()}`} /> : null}
           {attendanceStatus !== anyValue ? <Badge label={attendanceStatus === 'attended' ? 'attended' : 'pending'} /> : null}
-          {trainer !== anyValue ? <Badge label={trainer} /> : null}
+          {trainerId !== anyValue ? <Badge label={trainerNameById(trainerId)} /> : null}
           {timing !== anyValue ? <Badge label={timing} /> : null}
         </div>
       </Card>
@@ -182,7 +183,7 @@ export default function AttendancePage() {
                 <td className="px-4 py-4 text-sm"><Link to={`/admin/sessions/${session?.id}/edit`} className="font-semibold text-cyan-800 hover:text-cyan-950">{course?.title}</Link><p className="mt-1 text-xs text-slate-500">{session?.startTime} - {session?.endTime}</p></td>
                 <td className="px-4 py-4 text-sm text-slate-700">{session ? formatDate(session.startDate) : '-'}</td>
                 <td className="px-4 py-4 text-sm text-slate-700">{location?.name}</td>
-                <td className="px-4 py-4 text-sm text-slate-700">{session?.trainer ?? 'To be confirmed'}</td>
+                <td className="px-4 py-4 text-sm text-slate-700">{trainerNameById(session?.trainerId)}</td>
                 <td className="px-4 py-4 text-sm"><Badge label={booking.attendanceMarked ? 'Marked' : 'Pending'} variant={booking.attendanceMarked ? 'success' : 'warning'} /></td>
                 <td className="px-4 py-4 text-sm"><Button variant={booking.attendanceMarked ? 'secondary' : 'primary'}>{booking.attendanceMarked ? 'Update' : 'Mark attendance'}</Button></td>
               </tr>
