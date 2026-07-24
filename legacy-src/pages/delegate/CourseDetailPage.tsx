@@ -10,7 +10,7 @@ import useCatalog from '../../hooks/useCatalog'
 export default function CourseDetailPage() {
   const { courseId } = useParams()
   const { courses, locations, sessions, trainers, isLoading } = useCatalog()
-  const course = useMemo(() => courses.find((item) => item.id === courseId), [courseId])
+  const course = useMemo(() => courses.find((item) => item.id === courseId), [courseId, courses])
 
   if (isLoading) return <p className="rounded-2xl border border-slate-200 bg-white p-8 text-slate-700">Loading the latest course details...</p>
   if (!course) {

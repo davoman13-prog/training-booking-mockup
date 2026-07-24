@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Booking, Course, Delegate, Location, Session, Trainer } from "../types";
+import { AttendanceRecord, Booking, Certificate, Course, Delegate, Invoice, Location, Session, Trainer } from "../types";
 
 interface Catalog {
   courses: Course[];
@@ -8,10 +8,14 @@ interface Catalog {
   trainers: Trainer[];
   delegates: Delegate[];
   bookings: Booking[];
+  attendanceRecords: AttendanceRecord[];
+  invoices: Invoice[];
+  certificates: Certificate[];
 }
 
 const emptyCatalog: Catalog = {
   courses: [], locations: [], sessions: [], trainers: [], delegates: [], bookings: [],
+  attendanceRecords: [], invoices: [], certificates: [],
 };
 
 export default function useCatalog() {

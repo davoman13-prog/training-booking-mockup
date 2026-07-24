@@ -7,14 +7,18 @@ import { formatCurrency, formatDate } from '../../utils/formatters'
 import { MockUser } from '../../types'
 
 export default function InvoicesPage({ currentUser }: { currentUser: MockUser }) {
-  const { bookings, courses, sessions, isLoading } = useCatalog()
-  const rows = bookings
-    .filter((booking) => booking.delegateId === currentUser.id && booking.invoiceId)
-    .map((booking) => ({
+  const { bookings, invoices, courses, sessions, isLoading } = useCatalog()
+  const rows = invoices
+    .filter((invoice) => invoice.delegateId === currentUser.id)
+    .map((invoice) => {
+      const booking = bookings.find((item) => item.id === invoice.bookingId)
+      return {
+      invoice,
       booking,
-      course: courses.find((course) => course.id === booking.courseId),
-      session: sessions.find((session) => session.id === booking.sessionId),
-    }))
+      course: courses.find((course) => course.id === invoice.courseId),
+      session: sessions.find((session) => session.id === booking?.sessionId),
+    }
+    })
 
   if (isLoading) return <Card><p className="text-sm text-slate-700">Loading invoice records...</p></Card>
   return <div className="space-y-6">
@@ -24,13 +28,13 @@ export default function InvoicesPage({ currentUser }: { currentUser: MockUser })
       <p className="mt-2 text-sm text-slate-600">Only invoices genuinely linked to your live booking records are shown.</p>
     </div>
     {rows.length ? <Table headers={['Invoice reference', 'Course', 'Session', 'Amount', 'Booking', 'Status']}>
-      {rows.map(({ booking, course, session }) => <tr key={booking.invoiceId}>
-        <td className="px-4 py-4 text-sm font-semibold text-slate-900">{booking.invoiceId}</td>
+      {rows.map(({ invoice, booking, course, session }) => <tr key={invoice.id}>
+        <td className="px-4 py-4 text-sm font-semibold text-slate-900">{invoice.id}</td>
         <td className="px-4 py-4 text-sm text-slate-700">{course?.title}</td>
         <td className="px-4 py-4 text-sm text-slate-700">{session ? formatDate(session.startDate) : 'To be confirmed'}</td>
-        <td className="px-4 py-4 text-sm font-semibold text-slate-900">{formatCurrency(course?.price ?? 0)}</td>
-        <td className="px-4 py-4 text-sm"><Link to={`/delegate/bookings/${booking.id}`} className="font-semibold text-cyan-800">{booking.id}</Link></td>
-        <td className="px-4 py-4 text-sm"><Badge label="recorded" variant="info" /></td>
+        <td className="px-4 py-4 text-sm font-semibold text-slate-900">{formatCurrency(invoice.amount)}</td>
+        <td className="px-4 py-4 text-sm">{booking ? <Link to={`/delegate/bookings/${booking.id}`} className="font-semibold text-cyan-800">{booking.id}</Link> : '-'}</td>
+        <td className="px-4 py-4 text-sm"><Badge label={invoice.status} variant={invoice.status === 'paid' ? 'success' : invoice.status === 'overdue' ? 'danger' : 'info'} /></td>
       </tr>)}
     </Table> : <Card>
       <h2 className="text-lg font-semibold text-slate-950">No invoices generated</h2>

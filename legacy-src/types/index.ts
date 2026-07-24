@@ -3,8 +3,8 @@ export type Role = 'delegate' | 'admin'
 export type CourseFundingType = 'funded' | 'unfunded'
 export type CourseStatus = 'open' | 'awaiting_minimum' | 'at_risk' | 'cancelled' | 'completed'
 export type BookingStatus = 'confirmed' | 'pending' | 'cancelled' | 'completed'
-export type InvoiceStatus = 'paid' | 'unpaid' | 'overdue' | 'not_required'
-export type CertificateStatus = 'available' | 'pending' | 'issued'
+export type InvoiceStatus = 'draft' | 'issued' | 'paid' | 'overdue' | 'cancelled'
+export type CertificateStatus = 'available' | 'pending' | 'issued' | 'revoked'
 export type TrainerStatus = 'active' | 'inactive'
 export type SessionStatus = 'scheduled' | 'completed' | 'cancelled' | 'on_hold'
 
@@ -131,6 +131,14 @@ export interface Certificate {
   issuedDate?: string
   status: CertificateStatus
   downloadLink?: string
+}
+
+export interface AttendanceRecord {
+  bookingId: string
+  outcome: 'pending' | 'attended' | 'absent'
+  notes: string
+  markedByUserId?: string
+  markedAt?: string
 }
 
 export interface ReportMetric {

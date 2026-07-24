@@ -11,18 +11,14 @@ import { MockUser } from '../../types'
 type BadgeVariant = 'default' | 'success' | 'warning' | 'danger' | 'info'
 
 function statusVariant(status?: string): BadgeVariant {
-  if (status === 'confirmed' || status === 'completed' || status === 'available' || status === 'paid' || status === 'not_required') return 'success'
+  if (status === 'confirmed' || status === 'completed' || status === 'available' || status === 'issued' || status === 'paid' || status === 'attended') return 'success'
   if (status === 'cancelled' || status === 'overdue') return 'danger'
   return 'warning'
 }
 
-function attendanceLabel(marked: boolean) {
-  return marked ? 'attended' : 'not marked'
-}
-
 export default function MyBookingsPage({ currentUser }: { currentUser: MockUser }) {
   const [searchParams] = useSearchParams()
-  const { bookings, courses, delegates, locations, sessions } = useCatalog()
+  const { bookings, courses, delegates, locations, sessions, attendanceRecords, invoices, certificates } = useCatalog()
   const delegate = delegates.find((item) => item.id === currentUser.id)
   const initialStatus = searchParams.get('status') ?? 'all'
   const [search, setSearch] = useState(searchParams.get('search') ?? '')
@@ -42,24 +38,28 @@ export default function MyBookingsPage({ currentUser }: { currentUser: MockUser 
         const course = courses.find((item) => item.id === booking.courseId)
         const session = sessions.find((item) => item.id === booking.sessionId)
         const location = locations.find((item) => item.id === booking.locationId)
-        return { booking, course, session, location }
+        const attendance = attendanceRecords.find((item) => item.bookingId === booking.id)
+        const invoice = invoices.find((item) => item.bookingId === booking.id)
+        const certificate = certificates.find((item) => item.bookingId === booking.id)
+        return { booking, course, session, location, attendance, invoice, certificate }
       })
-  }, [bookings, courses, delegate, locations, sessions])
+  }, [attendanceRecords, bookings, certificates, courses, delegate, invoices, locations, sessions])
 
   const filteredRows = useMemo(() => {
     const query = search.trim().toLowerCase()
 
     return rows
-      .filter(({ booking, course, session, location }) => {
-        const certificateText = booking.certificateId ? 'recorded' : 'not issued'
-        const invoiceText = booking.invoiceId ? 'recorded' : (booking.paymentRequired ? 'not generated' : 'not_required')
+      .filter(({ booking, course, session, location, attendance, invoice, certificate }) => {
+        const certificateText = certificate?.status ?? 'not issued'
+        const invoiceText = invoice?.status ?? (booking.paymentRequired ? 'not generated' : 'not required')
+        const attendanceText = attendance?.outcome ?? 'pending'
         const haystack = [
           booking.id,
           course?.title,
           session?.startDate,
           location?.name,
           booking.status,
-          attendanceLabel(booking.attendanceMarked),
+          attendanceText,
           invoiceText,
           certificateText,
         ]
@@ -67,16 +67,16 @@ export default function MyBookingsPage({ currentUser }: { currentUser: MockUser 
           .join(' ')
           .toLowerCase()
 
-        const isUpcoming = session ? new Date(session.startDate) >= new Date('2026-06-26') && booking.status !== 'cancelled' : false
+        const isUpcoming = session ? new Date(session.startDate) >= new Date(new Date().toISOString().slice(0, 10)) && booking.status !== 'cancelled' : false
         const isCompleted = booking.status === 'completed' || session?.status === 'completed'
         const isCancelled = booking.status === 'cancelled' || session?.status === 'cancelled'
 
         return (
           (!query || haystack.includes(query)) &&
           (bookingStatus === 'all' || booking.status === bookingStatus) &&
-          (attendanceStatus === 'all' || (attendanceStatus === 'attended' ? booking.attendanceMarked : !booking.attendanceMarked)) &&
+          (attendanceStatus === 'all' || attendanceText === attendanceStatus) &&
           (fundingType === 'all' || course?.fundingType === fundingType) &&
-          (invoiceStatus === 'all' || invoiceText === invoiceStatus || (invoiceStatus === 'outstanding' && ['unpaid', 'overdue'].includes(invoiceText))) &&
+          (invoiceStatus === 'all' || invoiceText === invoiceStatus || (invoiceStatus === 'outstanding' && ['draft', 'issued', 'overdue'].includes(invoiceText))) &&
           (certificateStatus === 'all' || certificateText === certificateStatus || (certificateStatus === 'downloadable' && ['available', 'issued'].includes(certificateText))) &&
           (trainingStage === 'all' ||
             (trainingStage === 'upcoming' && isUpcoming) ||
@@ -150,7 +150,8 @@ export default function MyBookingsPage({ currentUser }: { currentUser: MockUser 
             <select value={attendanceStatus} onChange={(event) => setAttendanceStatus(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
               <option value="all">All attendance</option>
               <option value="attended">Attended</option>
-              <option value="not_marked">Not marked</option>
+              <option value="absent">Absent</option>
+              <option value="pending">Pending</option>
             </select>
           </label>
           <label className="text-sm font-semibold text-slate-700">
@@ -168,8 +169,11 @@ export default function MyBookingsPage({ currentUser }: { currentUser: MockUser 
             Invoice
             <select value={invoiceStatus} onChange={(event) => setInvoiceStatus(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
               <option value="all">All invoices</option>
-              <option value="recorded">Recorded</option>
-              <option value="not_required">Not required</option>
+              <option value="draft">Draft</option>
+              <option value="issued">Issued</option>
+              <option value="paid">Paid</option>
+              <option value="overdue">Overdue</option>
+              <option value="not required">Not required</option>
               <option value="not generated">Not generated</option>
             </select>
           </label>
@@ -177,7 +181,10 @@ export default function MyBookingsPage({ currentUser }: { currentUser: MockUser 
             Certificate
             <select value={certificateStatus} onChange={(event) => setCertificateStatus(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
               <option value="all">All certificates</option>
-              <option value="recorded">Recorded</option>
+              <option value="pending">Pending</option>
+              <option value="available">Available</option>
+              <option value="issued">Issued</option>
+              <option value="revoked">Revoked</option>
               <option value="not issued">Not issued</option>
             </select>
           </label>
@@ -216,7 +223,7 @@ export default function MyBookingsPage({ currentUser }: { currentUser: MockUser 
 
       {filteredRows.length ? (
         <Table headers={['Booking reference', 'Course', 'Session', 'Status', 'Invoice', 'Certificate']}>
-          {filteredRows.map(({ booking, course, session, location }) => (
+          {filteredRows.map(({ booking, course, session, location, attendance, invoice, certificate }) => (
             <tr key={booking.id}>
               <td className="px-4 py-4 text-sm font-semibold">
                 <Link to={`/delegate/bookings/${booking.id}`} className="text-cyan-800 hover:text-cyan-950">{booking.id}</Link>
@@ -232,11 +239,11 @@ export default function MyBookingsPage({ currentUser }: { currentUser: MockUser 
               <td className="px-4 py-4 text-sm">
                 <div className="flex flex-wrap gap-2">
                   <Badge label={booking.status} variant={statusVariant(booking.status)} />
-                  <Badge label={attendanceLabel(booking.attendanceMarked)} variant={booking.attendanceMarked ? 'success' : 'warning'} />
+                  <Badge label={attendance?.outcome ?? 'pending'} variant={statusVariant(attendance?.outcome)} />
                 </div>
               </td>
-              <td className="px-4 py-4 text-sm text-slate-700">{booking.invoiceId ? 'Recorded' : booking.paymentRequired ? 'Not generated' : 'Not required'}</td>
-              <td className="px-4 py-4 text-sm text-slate-700">{booking.certificateId ? 'Recorded' : 'Not issued'}</td>
+              <td className="px-4 py-4 text-sm text-slate-700">{invoice?.status ?? (booking.paymentRequired ? 'Not generated' : 'Not required')}</td>
+              <td className="px-4 py-4 text-sm text-slate-700">{certificate?.status ?? 'Not issued'}</td>
             </tr>
           ))}
         </Table>

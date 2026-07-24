@@ -1,13 +1,18 @@
-import { bookings, certificates, courses, invoices, locations } from '../../data/mockData'
 import SummaryLinkCard from '../../components/ui/SummaryLinkCard'
+import Card from '../../components/ui/Card'
+import useCatalog from '../../hooks/useCatalog'
 
 export default function ReportsPage() {
+  const { bookings, certificates, courses, invoices, locations, attendanceRecords, isLoading, loadError } = useCatalog()
   const fundedBookingCount = bookings.filter((booking) => courses.find((course) => course.id === booking.courseId)?.fundingType === 'funded').length
   const unfundedBookingCount = bookings.filter((booking) => courses.find((course) => course.id === booking.courseId)?.fundingType === 'unfunded').length
   const paidInvoiceCount = invoices.filter((invoice) => invoice.status === 'paid').length
   const overdueInvoiceCount = invoices.filter((invoice) => invoice.status === 'overdue').length
   const issuedCertificateCount = certificates.filter((certificate) => certificate.status === 'issued' || certificate.status === 'available').length
-  const attendanceCompleteCount = bookings.filter((booking) => booking.attendanceMarked).length
+  const attendanceCompleteCount = attendanceRecords.filter((record) => record.outcome !== 'pending').length
+  const invoiceValue = invoices.filter((invoice) => invoice.status !== 'cancelled').reduce((total, invoice) => total + invoice.amount, 0)
+
+  if (isLoading) return <Card><p className="text-sm text-slate-700">Loading live reporting data...</p></Card>
 
   return (
     <div className="space-y-6">
@@ -24,10 +29,11 @@ export default function ReportsPage() {
         <SummaryLinkCard label="Certificates issued" value={issuedCertificateCount} detail="Available or issued certificates" to="/admin/certificates?status=downloadable" />
       </div>
       <div className="grid gap-4 xl:grid-cols-3">
-        <SummaryLinkCard label="Invoice total" value={invoices.filter((invoice) => invoice.status !== 'not_required').length} detail="Generated invoice records" to="/admin/invoices?dateState=issued" />
+        <SummaryLinkCard label="Invoice value" value={`£${invoiceValue.toFixed(2)}`} detail={`${invoices.length} database invoice records`} to="/admin/invoices" />
         <SummaryLinkCard label="Attendance complete" value={attendanceCompleteCount} detail="Bookings with attendance recorded" to="/admin/attendance?attendanceStatus=attended" />
         <SummaryLinkCard label="Courses by active location" value={locations.filter((location) => location.isActive).length} detail="Active venues with session context" to="/admin/locations?status=active" />
       </div>
+      {loadError ? <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-800">{loadError}</div> : null}
     </div>
   )
 }

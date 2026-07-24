@@ -192,3 +192,37 @@ export const bookings = sqliteTable("bookings", {
   certificateId: text("certificate_id"),
   ...timestamps,
 });
+
+export const attendanceRecords = sqliteTable("attendance_records", {
+  bookingId: text("booking_id").primaryKey().references(() => bookings.id),
+  outcome: text("outcome", { enum: ["pending", "attended", "absent"] }).notNull().default("pending"),
+  notes: text("notes").notNull().default(""),
+  markedByUserId: text("marked_by_user_id").references(() => users.id),
+  markedAt: text("marked_at"),
+  ...timestamps,
+});
+
+export const invoices = sqliteTable("invoices", {
+  id: text("id").primaryKey(),
+  bookingId: text("booking_id").notNull().unique().references(() => bookings.id),
+  delegateId: text("delegate_id").notNull().references(() => delegates.id),
+  courseId: text("course_id").notNull().references(() => courses.id),
+  amountPence: integer("amount_pence").notNull(),
+  issuedDate: text("issued_date"),
+  dueDate: text("due_date").notNull(),
+  status: text("status", { enum: ["draft", "issued", "paid", "overdue", "cancelled"] }).notNull().default("draft"),
+  paidAt: text("paid_at"),
+  ...timestamps,
+});
+
+export const certificates = sqliteTable("certificates", {
+  id: text("id").primaryKey(),
+  bookingId: text("booking_id").notNull().unique().references(() => bookings.id),
+  delegateId: text("delegate_id").notNull().references(() => delegates.id),
+  courseId: text("course_id").notNull().references(() => courses.id),
+  issuedDate: text("issued_date"),
+  status: text("status", { enum: ["pending", "available", "issued", "revoked"] }).notNull().default("pending"),
+  fileKey: text("file_key"),
+  emailedAt: text("emailed_at"),
+  ...timestamps,
+});

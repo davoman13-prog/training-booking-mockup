@@ -39,7 +39,7 @@ export default function BrowseCoursesPage() {
 
       return matchesSearch && matchesCategory && matchesFunding && matchesLocation && matchesAvailability
     })
-  }, [availability, category, funding, locationId, searchTerm])
+  }, [availability, category, courses, funding, locationId, searchTerm, sessions])
 
   function clearFilters() {
     setSearchTerm('')

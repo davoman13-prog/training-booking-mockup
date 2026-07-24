@@ -7,14 +7,18 @@ import { formatDate } from '../../utils/formatters'
 import { MockUser } from '../../types'
 
 export default function CertificatesPage({ currentUser }: { currentUser: MockUser }) {
-  const { bookings, courses, sessions, isLoading } = useCatalog()
-  const rows = bookings
-    .filter((booking) => booking.delegateId === currentUser.id && booking.certificateId)
-    .map((booking) => ({
+  const { bookings, certificates, courses, sessions, isLoading } = useCatalog()
+  const rows = certificates
+    .filter((certificate) => certificate.delegateId === currentUser.id)
+    .map((certificate) => {
+      const booking = bookings.find((item) => item.id === certificate.bookingId)
+      return {
+      certificate,
       booking,
-      course: courses.find((course) => course.id === booking.courseId),
-      session: sessions.find((session) => session.id === booking.sessionId),
-    }))
+      course: courses.find((course) => course.id === certificate.courseId),
+      session: sessions.find((session) => session.id === booking?.sessionId),
+    }
+    })
 
   if (isLoading) return <Card><p className="text-sm text-slate-700">Loading certificate records...</p></Card>
   return <div className="space-y-6">
@@ -24,12 +28,12 @@ export default function CertificatesPage({ currentUser }: { currentUser: MockUse
       <p className="mt-2 text-sm text-slate-600">Only certificates genuinely linked to your live booking records are shown.</p>
     </div>
     {rows.length ? <Table headers={['Certificate reference', 'Course', 'Session', 'Booking', 'Status']}>
-      {rows.map(({ booking, course, session }) => <tr key={booking.certificateId}>
-        <td className="px-4 py-4 text-sm font-semibold text-slate-900">{booking.certificateId}</td>
+      {rows.map(({ certificate, booking, course, session }) => <tr key={certificate.id}>
+        <td className="px-4 py-4 text-sm font-semibold text-slate-900">{certificate.id}</td>
         <td className="px-4 py-4 text-sm text-slate-700">{course?.title}</td>
         <td className="px-4 py-4 text-sm text-slate-700">{session ? formatDate(session.startDate) : 'To be confirmed'}</td>
-        <td className="px-4 py-4 text-sm"><Link to={`/delegate/bookings/${booking.id}`} className="font-semibold text-cyan-800">{booking.id}</Link></td>
-        <td className="px-4 py-4 text-sm"><Badge label="recorded" variant="success" /></td>
+        <td className="px-4 py-4 text-sm">{booking ? <Link to={`/delegate/bookings/${booking.id}`} className="font-semibold text-cyan-800">{booking.id}</Link> : '-'}</td>
+        <td className="px-4 py-4 text-sm"><Badge label={certificate.status} variant={certificate.status === 'available' || certificate.status === 'issued' ? 'success' : certificate.status === 'revoked' ? 'danger' : 'warning'} /></td>
       </tr>)}
     </Table> : <Card>
       <h2 className="text-lg font-semibold text-slate-950">No certificates issued yet</h2>
