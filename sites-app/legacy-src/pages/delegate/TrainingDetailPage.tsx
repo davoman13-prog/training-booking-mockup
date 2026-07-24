@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { certificates, invoices } from '../../data/mockData'
 import Badge from '../../components/ui/Badge'
@@ -16,7 +17,9 @@ function statusVariant(status?: string) {
 
 export default function TrainingDetailPage({ currentUser }: { currentUser: MockUser }) {
   const { bookingId } = useParams()
-  const { bookings, courses, delegates, locations, sessions, isLoading } = useCatalog()
+  const { bookings, courses, delegates, locations, sessions, isLoading, refresh } = useCatalog()
+  const [cancelling, setCancelling] = useState(false)
+  const [cancelError, setCancelError] = useState('')
   const booking = bookings.find((item) => item.id === bookingId && item.delegateId === currentUser.id)
 
   if (isLoading) return <p className="rounded-2xl border border-slate-200 bg-white p-8 text-slate-700">Loading your live booking...</p>
@@ -30,6 +33,19 @@ export default function TrainingDetailPage({ currentUser }: { currentUser: MockU
   const delegate = delegates.find((item) => item.id === booking.delegateId)
   const invoice = invoices.find((item) => item.id === booking.invoiceId)
   const certificate = certificates.find((item) => item.id === booking.certificateId)
+
+  async function cancelBooking() {
+    if (!booking || !window.confirm('Cancel this booking? The place will be released immediately.')) return
+    setCancelling(true); setCancelError('')
+    try {
+      const response = await fetch(`/api/bookings/${booking.id}/cancel`, { method: 'POST' })
+      const result = await response.json() as { message?: string }
+      if (!response.ok) throw new Error(result.message ?? 'The booking could not be cancelled.')
+      await refresh()
+    } catch (error) {
+      setCancelError(error instanceof Error ? error.message : 'The booking could not be cancelled.')
+    } finally { setCancelling(false) }
+  }
 
   return (
     <div className="space-y-6">
@@ -118,10 +134,12 @@ export default function TrainingDetailPage({ currentUser }: { currentUser: MockU
       </div>
 
       <div className="flex flex-wrap gap-3">
+        {cancelError ? <p className="w-full rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-800">{cancelError}</p> : null}
         <Link to="/delegate/dashboard"><Button variant="secondary">Return to dashboard</Button></Link>
         <Link to="/delegate/bookings"><Button variant="ghost">View all bookings</Button></Link>
         {invoice && invoice.status !== 'not_required' ? <Link to={`/delegate/invoices/${invoice.id}`}><Button variant="ghost">View invoice</Button></Link> : null}
         {certificate?.status === 'available' ? <Link to={`/delegate/certificates/${certificate.id}`}><Button variant="ghost">View certificate</Button></Link> : null}
+        {booking.status !== 'cancelled' && booking.status !== 'completed' ? <Button variant="secondary" onClick={cancelBooking} disabled={cancelling}>{cancelling ? 'Cancelling...' : 'Cancel booking'}</Button> : null}
       </div>
     </div>
   )
