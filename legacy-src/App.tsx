@@ -70,13 +70,11 @@ function App() {
     if (user.role === 'admin') window.localStorage.setItem(storageKey, JSON.stringify(user))
   }
 
-  function handleLogout() {
-    if (currentUser?.role === 'delegate') {
-      window.location.assign('/signout-with-chatgpt?return_to=/')
-      return
-    }
+  async function handleLogout() {
+    if (currentUser?.role === 'delegate') await fetch('/api/auth/logout', { method: 'POST' }).catch(() => undefined)
     setCurrentUser(null)
     window.localStorage.removeItem(storageKey)
+    window.location.hash = '#/login'
   }
 
   if (authLoading) return <div className="min-h-screen bg-slate-50 p-8 text-sm font-semibold text-slate-600">Checking your secure Kalu session…</div>

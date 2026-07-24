@@ -35,6 +35,9 @@ const bookingFormUrl = new URL("../legacy-src/pages/delegate/BookingFormPage.tsx
 const bookingCreateUrl = new URL("../app/api/bookings/route.ts", import.meta.url);
 const bookingUpdateUrl = new URL("../app/api/bookings/[bookingId]/route.ts", import.meta.url);
 const authSessionUrl = new URL("../app/api/auth/session/route.ts", import.meta.url);
+const authCoreUrl = new URL("../app/api/auth/auth.ts", import.meta.url);
+const authLoginUrl = new URL("../app/api/auth/login/route.ts", import.meta.url);
+const authRegisterUrl = new URL("../app/api/auth/register/route.ts", import.meta.url);
 const appUrl = new URL("../legacy-src/App.tsx", import.meta.url);
 const loginUrl = new URL("../legacy-src/pages/delegate/LoginPage.tsx", import.meta.url);
 
@@ -144,13 +147,13 @@ test("linked locations and trainers are protected from deletion", async () => {
   assert.match(trainerDetail, /linked to session history and cannot be removed/);
 });
 
-test("delegate registration and admin edits use the live API", async () => {
+test("delegate registration and admin edits use live APIs", async () => {
   const [registration, detail, route] = await Promise.all([
     readFile(registerUrl, "utf8"),
     readFile(delegateDetailUrl, "utf8"),
     readFile(delegateRouteUrl, "utf8"),
   ]);
-  assert.match(registration, /fetch\('\/api\/delegates'/);
+  assert.match(registration, /fetch\('\/api\/auth\/register'/);
   assert.match(detail, /fetch\(`\/api\/delegates\/\$\{delegate\.id\}`/);
   assert.match(detail, /await refresh\(\)/);
   assert.match(route, /DELEGATE_HAS_BOOKINGS/);
@@ -170,21 +173,32 @@ test("booking creation and cancellation keep session capacity in sync", async ()
   assert.match(updateRoute, /session is unavailable or full/);
 });
 
-test("delegate identity comes from the secure hosting session", async () => {
-  const [sessionRoute, app, login, registration, bookingRoute] = await Promise.all([
+test("delegate accounts use hashed passwords and secure server sessions", async () => {
+  const [sessionRoute, authCore, loginRoute, registerRoute, app, login, registration, bookingRoute] = await Promise.all([
     readFile(authSessionUrl, "utf8"),
+    readFile(authCoreUrl, "utf8"),
+    readFile(authLoginUrl, "utf8"),
+    readFile(authRegisterUrl, "utf8"),
     readFile(appUrl, "utf8"),
     readFile(loginUrl, "utf8"),
     readFile(registerUrl, "utf8"),
     readFile(bookingCreateUrl, "utf8"),
   ]);
-  assert.match(sessionRoute, /oai-authenticated-user-email/);
-  assert.match(sessionRoute, /registered: false, email/);
-  assert.match(sessionRoute, /role: "delegate"/);
+  assert.match(sessionRoute, /currentDelegate\(request\)/);
+  assert.match(authCore, /PBKDF2/);
+  assert.match(authCore, /iterations: 210_000/);
+  assert.match(authCore, /HttpOnly; Secure; SameSite=Lax/);
+  assert.match(authCore, /token_hash/);
+  assert.match(loginRoute, /MAX_ATTEMPTS = 5/);
+  assert.match(loginRoute, /ACCOUNT_LOCKED/);
+  assert.match(registerRoute, /hashPassword/);
+  assert.match(registerRoute, /delegate_auth_accounts/);
   assert.match(app, /fetch\('\/api\/auth\/session'/);
   assert.doesNotMatch(app, /kalu-training-mock-user/);
-  assert.match(login, /verified ChatGPT sign-in/);
-  assert.match(registration, /readOnly required/);
-  assert.match(bookingRoute, /authenticatedEmail/);
+  assert.match(login, /A ChatGPT account is not required/);
+  assert.match(login, /fetch\('\/api\/auth\/login'/);
+  assert.match(registration, /fetch\('\/api\/auth\/register'/);
+  assert.match(registration, /minLength=\{12\}/);
+  assert.match(bookingRoute, /currentDelegate\(request\)/);
   assert.doesNotMatch(bookingRoute, /payload\.delegateId/);
 });

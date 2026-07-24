@@ -136,6 +136,25 @@ export const delegates = sqliteTable("delegates", {
   ...timestamps,
 });
 
+export const delegateAuthAccounts = sqliteTable("delegate_auth_accounts", {
+  delegateId: text("delegate_id").primaryKey().references(() => delegates.id),
+  passwordHash: text("password_hash").notNull(),
+  passwordSalt: text("password_salt").notNull(),
+  failedAttempts: integer("failed_attempts").notNull().default(0),
+  lockedUntil: text("locked_until"),
+  passwordUpdatedAt: text("password_updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  ...timestamps,
+});
+
+export const delegateAuthSessions = sqliteTable("delegate_auth_sessions", {
+  id: text("id").primaryKey(),
+  delegateId: text("delegate_id").notNull().references(() => delegates.id),
+  tokenHash: text("token_hash").notNull().unique(),
+  expiresAt: text("expires_at").notNull(),
+  lastUsedAt: text("last_used_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
 export const bookings = sqliteTable("bookings", {
   id: text("id").primaryKey(),
   delegateId: text("delegate_id").notNull().references(() => delegates.id),
