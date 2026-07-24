@@ -1,17 +1,17 @@
-import { FormEvent, useMemo, useState } from 'react'
+import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { bookings, certificates, courses, invoices, locations, sessions, trainers } from '../../data/mockData'
+import { bookings, certificates, invoices } from '../../data/mockData'
 import Badge from '../../components/ui/Badge'
 import Card from '../../components/ui/Card'
 import Input from '../../components/ui/Input'
 import Select from '../../components/ui/Select'
 import Button from '../../components/ui/Button'
 import { formatDate } from '../../utils/formatters'
-import { findTrainer, trainerNameById } from '../../utils/trainerUtils'
 import Table from '../../components/ui/Table'
 import { allDelegates } from './delegateUtils'
 import { activeBookingCount, daysUntilSession, riskExplanation, sessionDisplayStatus, statusVariant } from '../../utils/sessionRules'
 import { SessionStatus } from '../../types'
+import useCatalog from '../../hooks/useCatalog'
 
 interface SessionFormState {
   courseId: string
@@ -23,7 +23,6 @@ interface SessionFormState {
   endTime: string
   capacity: string
   attendeeCount: string
-  availableSeats: string
   status: SessionStatus
 }
 
@@ -48,7 +47,8 @@ export default function SessionFormPage() {
   const location = useLocation()
   const preselectedCourseId = searchParams.get('courseId') ?? undefined
   const returnedTrainerId = searchParams.get('trainerId') ?? undefined
-  const session = useMemo(() => sessions.find((item) => item.id === sessionId), [sessionId])
+  const { courses, locations, sessions, trainers, isLive, isLoading, loadError, refresh } = useCatalog()
+  const session = useMemo(() => sessions.find((item) => item.id === sessionId), [sessionId, sessions])
   const editing = Boolean(session)
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState('')
@@ -70,13 +70,34 @@ export default function SessionFormPage() {
       endTime: session?.endTime ?? '',
       capacity: session ? capacity.toString() : '',
       attendeeCount: session?.attendeeCount.toString() ?? '',
-      availableSeats: session?.availableSeats.toString() ?? '',
       status: session?.status ?? 'scheduled',
     }
   })
+  useEffect(() => {
+    if (!isLive || !session) return
+    // Live data replaces the prototype seed once the catalogue request completes.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setFormState({
+      courseId: session.courseId,
+      locationId: session.locationId,
+      trainerId: session.trainerId ?? '',
+      startDate: session.startDate,
+      endDate: session.endDate,
+      startTime: session.startTime,
+      endTime: session.endTime,
+      capacity: (session.attendeeCount + session.availableSeats).toString(),
+      attendeeCount: session.attendeeCount.toString(),
+      status: session.status,
+    })
+  }, [isLive, session])
   const course = courses.find((item) => item.id === formState.courseId)
   const sessionBookings = session ? bookings.filter((booking) => booking.sessionId === session.id) : []
   const spacesRemaining = session ? Math.max(capacity - sessionBookings.length, 0) : 0
+  const findTrainer = (trainerId?: string) => trainers.find((trainer) => trainer.id === trainerId)
+  const trainerNameById = (trainerId?: string) => {
+    const trainer = findTrainer(trainerId)
+    return trainer ? `${trainer.firstName} ${trainer.lastName}` : 'Unassigned'
+  }
   const selectedTrainer = findTrainer(formState.trainerId)
   const trainerInvalidForCourse = Boolean(formState.trainerId && (!selectedTrainer || selectedTrainer.status !== 'active' || !selectedTrainer.approvedCourseIds.includes(formState.courseId)))
   const trainerOptions = trainers
@@ -102,7 +123,7 @@ export default function SessionFormPage() {
     window.sessionStorage.setItem(draftStorageKey, JSON.stringify(formState))
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (trainerInvalidForCourse) {
       setSaveError('Choose an active trainer approved for the selected course before saving this session.')
@@ -110,7 +131,37 @@ export default function SessionFormPage() {
       return
     }
     setSaveError('')
-    setSaved(true)
+    setSaved(false)
+
+    const payload = {
+      courseId: formState.courseId,
+      locationId: formState.locationId,
+      trainerId: formState.trainerId || null,
+      startDate: formState.startDate,
+      endDate: formState.endDate,
+      startTime: formState.startTime,
+      endTime: formState.endTime,
+      capacity: Number(formState.capacity),
+      attendeeCount: Number(formState.attendeeCount || 0),
+      status: formState.status,
+    }
+
+    try {
+      const response = await fetch(editing ? `/api/sessions/${session!.id}` : '/api/sessions', {
+        method: editing ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      const result = await response.json() as { session?: { id: string }; message?: string }
+      if (!response.ok) throw new Error(result.message ?? 'The session could not be saved.')
+      await refresh()
+      setSaved(true)
+      if (!editing && result.session?.id) {
+        navigate(`/admin/sessions/${result.session.id}/edit`, { replace: true })
+      }
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : 'The session could not be saved.')
+    }
   }
 
   function openAddTrainer() {
@@ -132,6 +183,9 @@ export default function SessionFormPage() {
           <h1 className="mt-2 text-3xl font-semibold text-slate-950">
             {editing ? `Edit Session: ${course?.title ?? session?.id} - ${session ? formatDate(session.startDate) : ''}` : 'Create new session'}
           </h1>
+          <p className={`mt-1 text-sm font-semibold ${isLive ? 'text-emerald-700' : 'text-amber-700'}`}>
+            {isLive ? 'Connected to the live catalogue' : isLoading ? 'Loading the live catalogue' : 'Live catalogue unavailable'}
+          </p>
           {!editing && course ? <p className="mt-2 text-sm text-slate-600">Creating a mock session for {course.title}.</p> : null}
         </div>
         <Link to={course && !editing ? `/admin/courses/${course.id}/edit` : '/admin/sessions'}>
@@ -140,12 +194,15 @@ export default function SessionFormPage() {
       </div>
       {saved ? (
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">
-          Mock session saved. No database was updated.
+          Session saved to the live catalogue.
           {course ? <Link to={`/admin/courses/${course.id}/edit`} className="ml-2 underline">Return to course page</Link> : null}
         </div>
       ) : null}
       {saveError ? (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800">{saveError}</div>
+      ) : null}
+      {loadError ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-800">{loadError}</div>
       ) : null}
       {course && !editing ? (
         <Card>
@@ -154,25 +211,28 @@ export default function SessionFormPage() {
           <p className="mt-2 text-sm text-slate-600">{course.category} / {course.fundingType === 'funded' ? 'Funded' : `Unfunded, minimum ${course.minimumAttendees ?? '-'} delegates`}</p>
         </Card>
       ) : null}
+      {isLoading && !isLive ? (
+        <Card><p className="text-sm text-slate-600">Loading the latest session details…</p></Card>
+      ) : isLive ? (
       <Card>
         <form className="space-y-6" onSubmit={handleSubmit}>
           <div className="grid gap-6 lg:grid-cols-3">
             <div>
               <label className="text-sm font-semibold text-slate-900">Course</label>
-              <Select value={formState.courseId} onChange={(event) => updateForm('courseId', event.target.value)}>
+              <Select name="courseId" value={formState.courseId} onChange={(event) => updateForm('courseId', event.target.value)}>
                 {courses.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
               </Select>
             </div>
             <div>
               <label className="text-sm font-semibold text-slate-900">Location</label>
-              <Select value={formState.locationId} onChange={(event) => updateForm('locationId', event.target.value)}>
+              <Select name="locationId" value={formState.locationId} onChange={(event) => updateForm('locationId', event.target.value)}>
                 {locations.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}
               </Select>
             </div>
             <div>
               <label className="text-sm font-semibold text-slate-900">Trainer</label>
               <div className="flex flex-col gap-2 sm:flex-row">
-                <Select value={formState.trainerId} onChange={(event) => updateForm('trainerId', event.target.value)}>
+                <Select name="trainerId" value={formState.trainerId} onChange={(event) => updateForm('trainerId', event.target.value)}>
                   <option value="">Select active approved trainer</option>
                   {trainerOptions.map((trainer) => {
                     return (
@@ -193,37 +253,37 @@ export default function SessionFormPage() {
           <div className="grid gap-6 lg:grid-cols-4">
             <div>
               <label className="text-sm font-semibold text-slate-900">Start date</label>
-              <Input type="date" value={formState.startDate} onChange={(event) => updateForm('startDate', event.target.value)} />
+              <Input name="startDate" required type="date" value={formState.startDate} onChange={(event) => updateForm('startDate', event.target.value)} />
             </div>
             <div>
               <label className="text-sm font-semibold text-slate-900">End date</label>
-              <Input type="date" value={formState.endDate} onChange={(event) => updateForm('endDate', event.target.value)} />
+              <Input name="endDate" required type="date" value={formState.endDate} onChange={(event) => updateForm('endDate', event.target.value)} />
             </div>
             <div>
               <label className="text-sm font-semibold text-slate-900">Start time</label>
-              <Input type="time" value={formState.startTime} onChange={(event) => updateForm('startTime', event.target.value)} />
+              <Input name="startTime" required type="time" value={formState.startTime} onChange={(event) => updateForm('startTime', event.target.value)} />
             </div>
             <div>
               <label className="text-sm font-semibold text-slate-900">End time</label>
-              <Input type="time" value={formState.endTime} onChange={(event) => updateForm('endTime', event.target.value)} />
+              <Input name="endTime" required type="time" value={formState.endTime} onChange={(event) => updateForm('endTime', event.target.value)} />
             </div>
           </div>
           <div className="grid gap-6 lg:grid-cols-4">
             <div>
               <label className="text-sm font-semibold text-slate-900">Capacity</label>
-              <Input type="number" value={formState.capacity} onChange={(event) => updateForm('capacity', event.target.value)} />
+              <Input name="capacity" required min="1" type="number" value={formState.capacity} onChange={(event) => updateForm('capacity', event.target.value)} />
             </div>
             <div>
               <label className="text-sm font-semibold text-slate-900">Booked count</label>
-              <Input type="number" value={formState.attendeeCount} onChange={(event) => updateForm('attendeeCount', event.target.value)} />
+              <Input name="attendeeCount" min="0" type="number" value={formState.attendeeCount} onChange={(event) => updateForm('attendeeCount', event.target.value)} />
             </div>
             <div>
               <label className="text-sm font-semibold text-slate-900">Spaces remaining</label>
-              <Input type="number" value={formState.availableSeats} onChange={(event) => updateForm('availableSeats', event.target.value)} />
+              <Input name="availableSeats" type="number" value={Math.max(Number(formState.capacity || 0) - Number(formState.attendeeCount || 0), 0)} disabled aria-label="Spaces remaining is calculated" />
             </div>
             <div>
               <label className="text-sm font-semibold text-slate-900">Status</label>
-              <Select value={formState.status} onChange={(event) => updateForm('status', event.target.value as SessionFormState['status'])}>
+              <Select name="status" value={formState.status} onChange={(event) => updateForm('status', event.target.value as SessionFormState['status'])}>
                 <option value="scheduled">Open / scheduled</option>
                 <option value="on_hold">On Hold</option>
                 <option value="completed">Completed</option>
@@ -236,6 +296,7 @@ export default function SessionFormPage() {
           </div>
         </form>
       </Card>
+      ) : null}
       {session ? (
         <>
           <div className="grid gap-4 lg:grid-cols-5">
