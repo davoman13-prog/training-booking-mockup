@@ -7,7 +7,7 @@ import Input from '../../components/ui/Input'
 import Select from '../../components/ui/Select'
 import Table from '../../components/ui/Table'
 import { formatDate } from '../../utils/formatters'
-import { activeBookingCount, daysUntilSession, riskExplanation, sessionDisplayStatus, statusVariant } from '../../utils/sessionRules'
+import { daysUntilSession, riskExplanation, sessionDisplayStatus, statusVariant } from '../../utils/sessionRules'
 import { Session } from '../../types'
 import useCatalog from '../../hooks/useCatalog'
 
@@ -187,7 +187,7 @@ export default function ManageSessionsPage() {
             const course = courses.find((item) => item.id === session.courseId)
             const location = locations.find((item) => item.id === session.locationId)
             const derivedStatus = sessionDisplayStatus(session, course)
-            const activeBookings = activeBookingCount(session.id)
+            const activeBookings = session.attendeeCount
             const minimumMet = !course?.minimumAttendees || activeBookings >= course.minimumAttendees
 
             return (

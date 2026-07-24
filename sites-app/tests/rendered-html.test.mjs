@@ -15,6 +15,14 @@ const sessionPayloadUrl = new URL(
   "../app/api/sessions/sessionPayload.ts",
   import.meta.url,
 );
+const sessionRouteUrl = new URL(
+  "../app/api/sessions/[sessionId]/route.ts",
+  import.meta.url,
+);
+const sessionRulesUrl = new URL(
+  "../legacy-src/utils/sessionRules.ts",
+  import.meta.url,
+);
 
 test("catalogue refresh always reads current server data", async () => {
   const hook = await readFile(catalogHookUrl, "utf8");
@@ -74,4 +82,18 @@ test("session API rejects inconsistent dates and capacity", async () => {
   assert.match(payload, /Capacity must be at least 1/);
   assert.match(payload, /Booked count cannot be greater than capacity/);
   assert.match(payload, /availableSeats: payload\.capacity! - attendeeCount/);
+});
+
+test("session summaries and removal rules use live attendee counts", async () => {
+  const [form, rules, route] = await Promise.all([
+    readFile(sessionFormUrl, "utf8"),
+    readFile(sessionRulesUrl, "utf8"),
+    readFile(sessionRouteUrl, "utf8"),
+  ]);
+
+  assert.match(form, /\{session\.attendeeCount\}/);
+  assert.match(form, /const spacesRemaining = session\?\.availableSeats \?\? 0/);
+  assert.match(rules, /session\.attendeeCount < minimum/);
+  assert.match(route, /SESSION_HAS_BOOKINGS/);
+  assert.match(route, /existing\.attendeeCount > 0/);
 });

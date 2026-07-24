@@ -9,7 +9,7 @@ import Textarea from '../../components/ui/Textarea'
 import Button from '../../components/ui/Button'
 import Table from '../../components/ui/Table'
 import { formatCurrency, formatDate } from '../../utils/formatters'
-import { activeBookingCount, daysUntilSession, riskExplanation, sessionDisplayStatus as calculatedSessionStatus, statusVariant as calculatedStatusVariant } from '../../utils/sessionRules'
+import { daysUntilSession, riskExplanation, sessionDisplayStatus as calculatedSessionStatus, statusVariant as calculatedStatusVariant } from '../../utils/sessionRules'
 import { trainerNameById } from '../../utils/trainerUtils'
 import { Course, Session } from '../../types'
 import useCatalog from '../../hooks/useCatalog'
@@ -288,7 +288,7 @@ export default function CourseFormPage() {
                 {linkedSessions.map((session) => {
                   const location = locations.find((item) => item.id === session.locationId)
                   const displayStatus = sessionDisplayStatus(session, course)
-                  const activeBookings = activeBookingCount(session.id)
+                  const activeBookings = session.attendeeCount
                   const minimumMet = !course.minimumAttendees || activeBookings >= course.minimumAttendees
 
                   return (

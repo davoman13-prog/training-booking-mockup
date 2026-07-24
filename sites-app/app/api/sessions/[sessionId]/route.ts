@@ -48,17 +48,31 @@ export async function PUT(request: Request, context: RouteContext) {
 export async function DELETE(_request: Request, context: RouteContext) {
   try {
     const { sessionId } = await context.params;
-    const [session] = await getDb()
-      .delete(sessions)
+    const [existing] = await getDb()
+      .select({ attendeeCount: sessions.attendeeCount })
+      .from(sessions)
       .where(eq(sessions.id, sessionId))
-      .returning({ id: sessions.id });
+      .limit(1);
 
-    if (!session) {
+    if (!existing) {
       return Response.json(
         { code: "SESSION_NOT_FOUND", message: "The session was not found." },
         { status: 404 },
       );
     }
+    if (existing.attendeeCount > 0) {
+      return Response.json(
+        {
+          code: "SESSION_HAS_BOOKINGS",
+          message: "This session cannot be removed because it has booked delegates.",
+        },
+        { status: 409 },
+      );
+    }
+
+    await getDb()
+      .delete(sessions)
+      .where(eq(sessions.id, sessionId));
 
     return Response.json({ deleted: true, sessionId });
   } catch (error) {

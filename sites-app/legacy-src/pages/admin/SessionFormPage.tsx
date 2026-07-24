@@ -9,7 +9,7 @@ import Button from '../../components/ui/Button'
 import { formatDate } from '../../utils/formatters'
 import Table from '../../components/ui/Table'
 import { allDelegates } from './delegateUtils'
-import { activeBookingCount, daysUntilSession, riskExplanation, sessionDisplayStatus, statusVariant } from '../../utils/sessionRules'
+import { daysUntilSession, riskExplanation, sessionDisplayStatus, statusVariant } from '../../utils/sessionRules'
 import { SessionStatus } from '../../types'
 import useCatalog from '../../hooks/useCatalog'
 
@@ -52,6 +52,7 @@ export default function SessionFormPage() {
   const editing = Boolean(session)
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState('')
+  const [removeError, setRemoveError] = useState('')
   const capacity = session ? session.attendeeCount + session.availableSeats : 0
   const [formState, setFormState] = useState<SessionFormState>(() => {
     const draft = readDraft()
@@ -92,7 +93,7 @@ export default function SessionFormPage() {
   }, [isLive, session])
   const course = courses.find((item) => item.id === formState.courseId)
   const sessionBookings = session ? bookings.filter((booking) => booking.sessionId === session.id) : []
-  const spacesRemaining = session ? Math.max(capacity - sessionBookings.length, 0) : 0
+  const spacesRemaining = session?.availableSeats ?? 0
   const findTrainer = (trainerId?: string) => trainers.find((trainer) => trainer.id === trainerId)
   const trainerNameById = (trainerId?: string) => {
     const trainer = findTrainer(trainerId)
@@ -164,6 +165,25 @@ export default function SessionFormPage() {
     }
   }
 
+  async function handleRemove() {
+    if (!session) return
+    if (session.attendeeCount > 0) {
+      setRemoveError('This session cannot be removed because it has booked delegates.')
+      return
+    }
+    if (!window.confirm(`Remove this ${course?.title ?? ''} session from the live catalogue?`)) return
+
+    setRemoveError('')
+    try {
+      const response = await fetch(`/api/sessions/${session.id}`, { method: 'DELETE' })
+      const result = await response.json() as { message?: string }
+      if (!response.ok) throw new Error(result.message ?? 'The session could not be removed.')
+      navigate('/admin/sessions', { replace: true })
+    } catch (error) {
+      setRemoveError(error instanceof Error ? error.message : 'The session could not be removed.')
+    }
+  }
+
   function openAddTrainer() {
     persistDraft()
     navigate(`/admin/trainers/new?returnTo=${encodeURIComponent(`${location.pathname}${location.search}`)}`)
@@ -203,6 +223,9 @@ export default function SessionFormPage() {
       ) : null}
       {loadError ? (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-800">{loadError}</div>
+      ) : null}
+      {removeError ? (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800">{removeError}</div>
       ) : null}
       {course && !editing ? (
         <Card>
@@ -302,7 +325,7 @@ export default function SessionFormPage() {
           <div className="grid gap-4 lg:grid-cols-5">
             <Card><p className="text-sm text-slate-500">Course</p><p className="mt-2 text-sm font-semibold text-slate-950">{course?.title}</p></Card>
             <Card><p className="text-sm text-slate-500">Capacity</p><p className="mt-2 text-3xl font-semibold text-slate-950">{capacity}</p></Card>
-            <Card><p className="text-sm text-slate-500">Booked</p><p className="mt-2 text-3xl font-semibold text-slate-950">{sessionBookings.length}</p></Card>
+            <Card><p className="text-sm text-slate-500">Booked</p><p className="mt-2 text-3xl font-semibold text-slate-950">{session.attendeeCount}</p></Card>
             <Card><p className="text-sm text-slate-500">Spaces</p><p className="mt-2 text-3xl font-semibold text-slate-950">{spacesRemaining}</p></Card>
             <Card><p className="text-sm text-slate-500">Status</p><p className="mt-2"><Badge label={sessionDisplayStatus(session, course)} variant={statusVariant(sessionDisplayStatus(session, course))} /></p></Card>
           </div>
@@ -310,7 +333,7 @@ export default function SessionFormPage() {
           <Card>
             <h2 className="text-xl font-semibold text-slate-950">Risk and minimum numbers</h2>
             <dl className="mt-4 grid gap-4 text-sm sm:grid-cols-3">
-              <div><dt className="font-semibold text-slate-900">Active bookings</dt><dd className="text-slate-600">{activeBookingCount(session.id)}</dd></div>
+              <div><dt className="font-semibold text-slate-900">Active bookings</dt><dd className="text-slate-600">{session.attendeeCount}</dd></div>
               <div><dt className="font-semibold text-slate-900">Minimum attendees</dt><dd className="text-slate-600">{course?.minimumAttendees ?? 'Not required'}</dd></div>
               <div><dt className="font-semibold text-slate-900">Days until session</dt><dd className="text-slate-600">{daysUntilSession(session)}</dd></div>
             </dl>
@@ -354,6 +377,20 @@ export default function SessionFormPage() {
               ) : (
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-sm text-slate-600">No delegates are booked onto this session yet.</div>
               )}
+            </div>
+          </Card>
+
+          <Card>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-xl font-semibold text-slate-950">Remove session</h2>
+                <p className="mt-1 text-sm text-slate-600">
+                  {session.attendeeCount > 0
+                    ? 'This session has booked delegates and cannot be removed.'
+                    : 'This session has no booked delegates and can be removed.'}
+                </p>
+              </div>
+              <Button type="button" variant="secondary" onClick={handleRemove}>Remove session</Button>
             </div>
           </Card>
         </>
