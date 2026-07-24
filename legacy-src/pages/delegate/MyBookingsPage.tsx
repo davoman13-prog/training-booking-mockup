@@ -4,7 +4,6 @@ import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
 import Table from '../../components/ui/Table'
-import { certificates, invoices } from '../../data/mockData'
 import { formatCurrency, formatDate } from '../../utils/formatters'
 import useCatalog from '../../hooks/useCatalog'
 import { MockUser } from '../../types'
@@ -43,9 +42,7 @@ export default function MyBookingsPage({ currentUser }: { currentUser: MockUser 
         const course = courses.find((item) => item.id === booking.courseId)
         const session = sessions.find((item) => item.id === booking.sessionId)
         const location = locations.find((item) => item.id === booking.locationId)
-        const invoice = invoices.find((item) => item.id === booking.invoiceId)
-        const certificate = certificates.find((item) => item.id === booking.certificateId)
-        return { booking, course, session, location, invoice, certificate }
+        return { booking, course, session, location }
       })
   }, [bookings, courses, delegate, locations, sessions])
 
@@ -53,9 +50,9 @@ export default function MyBookingsPage({ currentUser }: { currentUser: MockUser 
     const query = search.trim().toLowerCase()
 
     return rows
-      .filter(({ booking, course, session, location, invoice, certificate }) => {
-        const certificateText = certificate?.status ?? (booking.certificateId ? 'linked' : 'not issued')
-        const invoiceText = invoice?.status ?? (booking.paymentRequired ? 'not generated' : 'not_required')
+      .filter(({ booking, course, session, location }) => {
+        const certificateText = booking.certificateId ? 'recorded' : 'not issued'
+        const invoiceText = booking.invoiceId ? 'recorded' : (booking.paymentRequired ? 'not generated' : 'not_required')
         const haystack = [
           booking.id,
           course?.title,
@@ -171,10 +168,7 @@ export default function MyBookingsPage({ currentUser }: { currentUser: MockUser 
             Invoice
             <select value={invoiceStatus} onChange={(event) => setInvoiceStatus(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
               <option value="all">All invoices</option>
-              <option value="paid">Paid</option>
-              <option value="unpaid">Unpaid</option>
-              <option value="overdue">Overdue</option>
-              <option value="outstanding">Unpaid / overdue</option>
+              <option value="recorded">Recorded</option>
               <option value="not_required">Not required</option>
               <option value="not generated">Not generated</option>
             </select>
@@ -183,10 +177,7 @@ export default function MyBookingsPage({ currentUser }: { currentUser: MockUser 
             Certificate
             <select value={certificateStatus} onChange={(event) => setCertificateStatus(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
               <option value="all">All certificates</option>
-              <option value="available">Available</option>
-              <option value="issued">Issued</option>
-              <option value="downloadable">Available / issued</option>
-              <option value="pending">Pending</option>
+              <option value="recorded">Recorded</option>
               <option value="not issued">Not issued</option>
             </select>
           </label>
@@ -225,7 +216,7 @@ export default function MyBookingsPage({ currentUser }: { currentUser: MockUser 
 
       {filteredRows.length ? (
         <Table headers={['Booking reference', 'Course', 'Session', 'Status', 'Invoice', 'Certificate']}>
-          {filteredRows.map(({ booking, course, session, location, invoice, certificate }) => (
+          {filteredRows.map(({ booking, course, session, location }) => (
             <tr key={booking.id}>
               <td className="px-4 py-4 text-sm font-semibold">
                 <Link to={`/delegate/bookings/${booking.id}`} className="text-cyan-800 hover:text-cyan-950">{booking.id}</Link>
@@ -244,8 +235,8 @@ export default function MyBookingsPage({ currentUser }: { currentUser: MockUser 
                   <Badge label={attendanceLabel(booking.attendanceMarked)} variant={booking.attendanceMarked ? 'success' : 'warning'} />
                 </div>
               </td>
-              <td className="px-4 py-4 text-sm text-slate-700">{invoice ? invoice.status.replace('_', ' ') : booking.paymentRequired ? 'Not generated' : 'Not required'}</td>
-              <td className="px-4 py-4 text-sm text-slate-700">{certificate?.status ?? 'Not issued'}</td>
+              <td className="px-4 py-4 text-sm text-slate-700">{booking.invoiceId ? 'Recorded' : booking.paymentRequired ? 'Not generated' : 'Not required'}</td>
+              <td className="px-4 py-4 text-sm text-slate-700">{booking.certificateId ? 'Recorded' : 'Not issued'}</td>
             </tr>
           ))}
         </Table>

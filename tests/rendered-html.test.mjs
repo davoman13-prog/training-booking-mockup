@@ -38,6 +38,10 @@ const bookingCancelUrl = new URL("../app/api/bookings/[bookingId]/cancel/route.t
 const courseDetailUrl = new URL("../legacy-src/pages/delegate/CourseDetailPage.tsx", import.meta.url);
 const bookingConfirmationUrl = new URL("../legacy-src/pages/delegate/BookingConfirmationPage.tsx", import.meta.url);
 const trainingDetailUrl = new URL("../legacy-src/pages/delegate/TrainingDetailPage.tsx", import.meta.url);
+const delegateDashboardUrl = new URL("../legacy-src/pages/delegate/DashboardPage.tsx", import.meta.url);
+const myBookingsUrl = new URL("../legacy-src/pages/delegate/MyBookingsPage.tsx", import.meta.url);
+const certificatesUrl = new URL("../legacy-src/pages/delegate/CertificatesPage.tsx", import.meta.url);
+const invoicesUrl = new URL("../legacy-src/pages/delegate/InvoicesPage.tsx", import.meta.url);
 const authSessionUrl = new URL("../app/api/auth/session/route.ts", import.meta.url);
 const authCoreUrl = new URL("../app/api/auth/auth.ts", import.meta.url);
 const authLoginUrl = new URL("../app/api/auth/login/route.ts", import.meta.url);
@@ -247,4 +251,19 @@ test("administrator access uses unified login and protected server sessions", as
   assert.match(bookingUpdate, /requireAdmin\(request\)/);
   assert.match(catalog, /visibleBookings/);
   assert.match(catalog, /visibleDelegates/);
+});
+
+test("delegate account pages never mix live records with prototype finance data", async () => {
+  const pages = await Promise.all([
+    readFile(delegateDashboardUrl, "utf8"),
+    readFile(myBookingsUrl, "utf8"),
+    readFile(trainingDetailUrl, "utf8"),
+    readFile(certificatesUrl, "utf8"),
+    readFile(invoicesUrl, "utf8"),
+  ]);
+  for (const page of pages) assert.doesNotMatch(page, /data\/mockData/);
+  assert.match(pages[0], /Invoices recorded/);
+  assert.match(pages[1], /booking\.invoiceId \? 'Recorded'/);
+  assert.match(pages[3], /Only certificates genuinely linked/);
+  assert.match(pages[4], /Only invoices genuinely linked/);
 });
