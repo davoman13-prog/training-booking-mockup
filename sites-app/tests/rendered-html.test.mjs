@@ -40,9 +40,6 @@ const authLoginUrl = new URL("../app/api/auth/login/route.ts", import.meta.url);
 const authRegisterUrl = new URL("../app/api/auth/register/route.ts", import.meta.url);
 const appUrl = new URL("../legacy-src/App.tsx", import.meta.url);
 const loginUrl = new URL("../legacy-src/pages/delegate/LoginPage.tsx", import.meta.url);
-const adminStatusUrl = new URL("../app/api/auth/admin/status/route.ts", import.meta.url);
-const adminSetupUrl = new URL("../app/api/auth/admin/setup/route.ts", import.meta.url);
-const adminLoginUrl = new URL("../app/api/auth/admin/login/route.ts", import.meta.url);
 const catalogRouteUrl = new URL("../app/api/catalog/route.ts", import.meta.url);
 const courseCreateUrl = new URL("../app/api/courses/route.ts", import.meta.url);
 
@@ -209,11 +206,9 @@ test("delegate accounts use hashed passwords and secure server sessions", async 
   assert.doesNotMatch(bookingRoute, /payload\.delegateId/);
 });
 
-test("administrator access uses one-time setup and protected server sessions", async () => {
-  const [status, setup, adminLogin, authCore, session, app, login, courseCreate, bookingUpdate, catalog] = await Promise.all([
-    readFile(adminStatusUrl, "utf8"),
-    readFile(adminSetupUrl, "utf8"),
-    readFile(adminLoginUrl, "utf8"),
+test("administrator access uses unified login and protected server sessions", async () => {
+  const [authLogin, authCore, session, app, login, courseCreate, bookingUpdate, catalog] = await Promise.all([
+    readFile(authLoginUrl, "utf8"),
     readFile(authCoreUrl, "utf8"),
     readFile(authSessionUrl, "utf8"),
     readFile(appUrl, "utf8"),
@@ -222,17 +217,17 @@ test("administrator access uses one-time setup and protected server sessions", a
     readFile(bookingUpdateUrl, "utf8"),
     readFile(catalogRouteUrl, "utf8"),
   ]);
-  assert.match(status, /COUNT\(\*\).*admin_auth_accounts/);
-  assert.match(setup, /SETUP_COMPLETE/);
-  assert.match(setup, /hashPassword/);
-  assert.match(adminLogin, /MAX_ATTEMPTS = 5/);
-  assert.match(adminLogin, /ACCOUNT_LOCKED/);
+  assert.match(authLogin, /MAX_ATTEMPTS = 5/);
+  assert.match(authLogin, /ACCOUNT_LOCKED/);
   assert.match(authCore, /kalu_admin_session/);
   assert.match(authCore, /HttpOnly; Secure; SameSite=Strict/);
   assert.match(session, /currentAdmin\(request\).*currentDelegate\(request\)/s);
   assert.doesNotMatch(app, /localStorage/);
   assert.doesNotMatch(login, /mockUsers|Password123|admin@kalu\.test/);
-  assert.match(login, /\/api\/auth\/admin\/setup/);
+  assert.match(login, /result\.user\.role === 'admin'/);
+  assert.doesNotMatch(login, /Administration|Admin login|Create first administrator|\/api\/auth\/admin/);
+  assert.match(authLogin, /createAdminSession/);
+  assert.match(authLogin, /admin_auth_accounts/);
   assert.match(courseCreate, /requireAdmin\(request\)/);
   assert.match(bookingUpdate, /requireAdmin\(request\)/);
   assert.match(catalog, /visibleBookings/);
