@@ -1,6 +1,5 @@
 import { FormEvent, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { bookings } from '../../data/mockData'
 import Badge from '../../components/ui/Badge'
 import Card from '../../components/ui/Card'
 import Input from '../../components/ui/Input'
@@ -10,7 +9,6 @@ import Button from '../../components/ui/Button'
 import Table from '../../components/ui/Table'
 import { formatCurrency, formatDate } from '../../utils/formatters'
 import { daysUntilSession, riskExplanation, sessionDisplayStatus as calculatedSessionStatus, statusVariant as calculatedStatusVariant } from '../../utils/sessionRules'
-import { trainerNameById } from '../../utils/trainerUtils'
 import { Course, Session } from '../../types'
 import useCatalog from '../../hooks/useCatalog'
 
@@ -41,7 +39,7 @@ function statusVariant(status: string): BadgeVariant {
 export default function CourseFormPage() {
   const { courseId } = useParams()
   const navigate = useNavigate()
-  const { courses, locations, sessions, isLive, isLoading, loadError, refresh } = useCatalog()
+  const { courses, locations, sessions, trainers, bookings, isLive, isLoading, loadError, refresh } = useCatalog()
   const course = useMemo(() => courses.find((item) => item.id === courseId), [courseId, courses])
   const editing = Boolean(course)
   const [saved, setSaved] = useState(false)
@@ -51,7 +49,11 @@ export default function CourseFormPage() {
   const [removeSuccess, setRemoveSuccess] = useState(false)
   const categories = useMemo(() => Array.from(new Set(courses.map((item) => item.category))).sort(), [courses])
   const linkedSessions = useMemo(() => course ? sessions.filter((session) => session.courseId === course.id) : [], [course, sessions])
-  const linkedBookings = useMemo(() => course ? bookings.filter((booking) => booking.courseId === course.id) : [], [course])
+  const linkedBookings = useMemo(() => course ? bookings.filter((booking) => booking.courseId === course.id) : [], [bookings, course])
+  const trainerNameById = (trainerId?: string) => {
+    const trainer = trainers.find((item) => item.id === trainerId)
+    return trainer ? `${trainer.firstName} ${trainer.lastName}` : 'Unassigned'
+  }
   const upcomingSessions = linkedSessions.filter((session) => session.status === 'scheduled').length
   const canRemoveCourse = editing && linkedBookings.length === 0
 

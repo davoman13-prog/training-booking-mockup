@@ -36,6 +36,13 @@
       "when": 1784889245606,
       "tag": "0004_unknown_rhodey",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1784895504521,
+      "tag": "0005_fair_stranger",
+      "breakpoints": true
     }
   ]
 }

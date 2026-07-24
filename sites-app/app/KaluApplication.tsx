@@ -7,7 +7,11 @@ import App from "../legacy-src/App";
 export default function KaluApplication() {
   const [mounted, setMounted] = useState(false);
 
-  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    // Client-only router activation after hydration is intentional.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMounted(true);
+  }, []);
 
   if (!mounted) {
     return (

@@ -7,14 +7,13 @@ import Input from '../../components/ui/Input'
 import Textarea from '../../components/ui/Textarea'
 import { formatCurrency, formatDate } from '../../utils/formatters'
 import { canBookSession, delegateSessionAvailabilityMessage } from '../../utils/sessionRules'
-import { trainerNameById } from '../../utils/trainerUtils'
 import useCatalog from '../../hooks/useCatalog'
 import { MockUser } from '../../types'
 
 export default function BookingFormPage({ currentUser }: { currentUser: MockUser }) {
   const { courseId, sessionId } = useParams()
   const navigate = useNavigate()
-  const { courses, delegates, locations, sessions, refresh, isLive } = useCatalog()
+  const { courses, delegates, locations, sessions, trainers, refresh, isLive } = useCatalog()
   const course = useMemo(() => courses.find((item) => item.id === courseId), [courseId, courses])
   const courseSessions = useMemo(() => sessions.filter((item) => item.courseId === courseId), [courseId, sessions])
   const selectedSession = useMemo(
@@ -22,6 +21,7 @@ export default function BookingFormPage({ currentUser }: { currentUser: MockUser
     [courseSessions, sessionId],
   )
   const selectedLocation = locations.find((item) => item.id === selectedSession?.locationId)
+  const selectedTrainer = trainers.find((item) => item.id === selectedSession?.trainerId)
   const [specialRequirements, setSpecialRequirements] = useState('')
   const [termsAccepted, setTermsAccepted] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -90,7 +90,7 @@ export default function BookingFormPage({ currentUser }: { currentUser: MockUser
               <div><dt className="font-semibold text-slate-900">Date</dt><dd>{formatDate(selectedSession.startDate)}</dd></div>
               <div><dt className="font-semibold text-slate-900">Time</dt><dd>{selectedSession.startTime} - {selectedSession.endTime}</dd></div>
               <div><dt className="font-semibold text-slate-900">Location</dt><dd>{selectedLocation?.name}</dd></div>
-              <div><dt className="font-semibold text-slate-900">Trainer</dt><dd>{trainerNameById(selectedSession.trainerId)}</dd></div>
+              <div><dt className="font-semibold text-slate-900">Trainer</dt><dd>{selectedTrainer ? `${selectedTrainer.firstName} ${selectedTrainer.lastName}` : 'Unassigned'}</dd></div>
               <div><dt className="font-semibold text-slate-900">Spaces remaining</dt><dd>{selectedSession.availableSeats}</dd></div>
               <div><dt className="font-semibold text-slate-900">Funding</dt><dd>{course.fundingType === 'funded' ? 'Funded - no invoice' : `Unfunded - ${formatCurrency(course.price ?? 0)}`}</dd></div>
             </dl>
@@ -99,7 +99,7 @@ export default function BookingFormPage({ currentUser }: { currentUser: MockUser
             ) : null}
             {course.fundingType === 'unfunded' ? (
               <p className="mt-4 rounded-2xl bg-amber-50 p-3 text-sm text-amber-800">
-                Minimum attendees: {course.minimumAttendees}. Invoice is only mocked when minimum numbers are met.
+                Minimum attendees: {course.minimumAttendees}. A draft invoice is created with the booking and can be issued by the training team.
               </p>
             ) : null}
           </div>

@@ -54,6 +54,11 @@ const appUrl = new URL("../legacy-src/App.tsx", import.meta.url);
 const loginUrl = new URL("../legacy-src/pages/delegate/LoginPage.tsx", import.meta.url);
 const catalogRouteUrl = new URL("../app/api/catalog/route.ts", import.meta.url);
 const courseCreateUrl = new URL("../app/api/courses/route.ts", import.meta.url);
+const attendanceRouteUrl = new URL("../app/api/attendance/[bookingId]/route.ts", import.meta.url);
+const invoiceRouteUrl = new URL("../app/api/invoices/[invoiceId]/route.ts", import.meta.url);
+const certificateRouteUrl = new URL("../app/api/certificates/[certificateId]/route.ts", import.meta.url);
+const schemaUrl = new URL("../db/schema.ts", import.meta.url);
+const financeMigrationUrl = new URL("../drizzle/0005_fair_stranger.sql", import.meta.url);
 
 test("catalogue refresh always reads current server data", async () => {
   const hook = await readFile(catalogHookUrl, "utf8");
@@ -267,9 +272,40 @@ test("delegate account pages never mix live records with prototype finance data"
   ]);
   for (const page of pages) assert.doesNotMatch(page, /data\/mockData/);
   assert.match(pages[0], /Invoices recorded/);
-  assert.match(pages[1], /booking\.invoiceId \? 'Recorded'/);
+  assert.match(pages[1], /invoices\.find\(\(item\) => item\.bookingId === booking\.id\)/);
+  assert.match(pages[1], /attendanceRecords\.find/);
+  assert.match(pages[1], /certificates\.find/);
   assert.match(pages[3], /Only certificates genuinely linked/);
   assert.match(pages[4], /Only invoices genuinely linked/);
+});
+
+test("attendance, invoices and certificates are persistent and protected", async () => {
+  const [schema, migration, booking, attendance, invoice, certificate, catalog] = await Promise.all([
+    readFile(schemaUrl, "utf8"),
+    readFile(financeMigrationUrl, "utf8"),
+    readFile(bookingCreateUrl, "utf8"),
+    readFile(attendanceRouteUrl, "utf8"),
+    readFile(invoiceRouteUrl, "utf8"),
+    readFile(certificateRouteUrl, "utf8"),
+    readFile(catalogRouteUrl, "utf8"),
+  ]);
+  assert.match(schema, /attendance_records/);
+  assert.match(schema, /invoices/);
+  assert.match(schema, /certificates/);
+  assert.match(migration, /INSERT INTO `attendance_records`/);
+  assert.match(migration, /INSERT INTO `invoices`/);
+  assert.match(migration, /INSERT INTO `certificates`/);
+  assert.match(booking, /INSERT INTO attendance_records/);
+  assert.match(booking, /INSERT INTO invoices/);
+  for (const route of [attendance, invoice, certificate]) {
+    assert.match(route, /currentAdmin|requireAdmin/);
+  }
+  assert.match(attendance, /INSERT INTO certificates/);
+  assert.match(attendance, /status = \?, updated_at/);
+  assert.match(catalog, /attendanceRecords:/);
+  assert.match(catalog, /invoices:/);
+  assert.match(catalog, /certificates:/);
+  assert.doesNotMatch(catalog, /data\/mockData|seedCatalogIfEmpty/);
 });
 
 test("delegates can securely maintain their own profile and password", async () => {

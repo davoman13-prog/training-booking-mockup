@@ -1,6 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { bookings, certificates, invoices } from '../../data/mockData'
 import Badge from '../../components/ui/Badge'
 import Card from '../../components/ui/Card'
 import Input from '../../components/ui/Input'
@@ -8,7 +7,6 @@ import Select from '../../components/ui/Select'
 import Button from '../../components/ui/Button'
 import { formatDate } from '../../utils/formatters'
 import Table from '../../components/ui/Table'
-import { allDelegates } from './delegateUtils'
 import { daysUntilSession, riskExplanation, sessionDisplayStatus, statusVariant } from '../../utils/sessionRules'
 import { SessionStatus } from '../../types'
 import useCatalog from '../../hooks/useCatalog'
@@ -47,7 +45,7 @@ export default function SessionFormPage() {
   const location = useLocation()
   const preselectedCourseId = searchParams.get('courseId') ?? undefined
   const returnedTrainerId = searchParams.get('trainerId') ?? undefined
-  const { courses, locations, sessions, trainers, isLive, isLoading, loadError, refresh } = useCatalog()
+  const { courses, locations, sessions, trainers, delegates, bookings, certificates, invoices, attendanceRecords, isLive, isLoading, loadError, refresh } = useCatalog()
   const session = useMemo(() => sessions.find((item) => item.id === sessionId), [sessionId, sessions])
   const editing = Boolean(session)
   const [saved, setSaved] = useState(false)
@@ -216,7 +214,7 @@ export default function SessionFormPage() {
           <p className={`mt-1 text-sm font-semibold ${isLive ? 'text-emerald-700' : 'text-amber-700'}`}>
             {isLive ? 'Connected to the live catalogue' : isLoading ? 'Loading the live catalogue' : 'Live catalogue unavailable'}
           </p>
-          {!editing && course ? <p className="mt-2 text-sm text-slate-600">Creating a mock session for {course.title}.</p> : null}
+          {!editing && course ? <p className="mt-2 text-sm text-slate-600">Creating a live session for {course.title}.</p> : null}
         </div>
         <Link to={course && !editing ? `/admin/courses/${course.id}/edit` : '/admin/sessions'}>
           <Button variant="secondary">Back to sessions</Button>
@@ -354,7 +352,7 @@ export default function SessionFormPage() {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="text-xl font-semibold text-slate-950">Delegates booked onto this session</h2>
-                <p className="mt-1 text-sm text-slate-600">Read-only mock booking records for this session.</p>
+                <p className="mt-1 text-sm text-slate-600">Live booking, attendance, invoice and certificate records for this session.</p>
               </div>
               <Link to={`/admin/sessions/${session.id}/delegates`}>
                 <Button variant="secondary">Open delegates view</Button>
@@ -364,9 +362,10 @@ export default function SessionFormPage() {
               {sessionBookings.length ? (
                 <Table headers={['Delegate', 'Email', 'Phone', 'Practice', 'Manager', 'Booking', 'Booking status', 'Attendance', 'Invoice', 'Certificate']}>
                   {sessionBookings.map((booking) => {
-                    const delegate = allDelegates().find((item) => item.id === booking.delegateId)
+                    const delegate = delegates.find((item) => item.id === booking.delegateId)
                     const invoice = invoices.find((item) => item.id === booking.invoiceId)
                     const certificate = certificates.find((item) => item.id === booking.certificateId)
+                    const attendance = attendanceRecords.find((item) => item.bookingId === booking.id)
 
                     return (
                       <tr key={booking.id} className="border-t border-slate-200">
@@ -377,7 +376,7 @@ export default function SessionFormPage() {
                         <td className="px-4 py-4 text-sm text-slate-700">{delegate?.managerName}<p className="mt-1 text-xs text-slate-500">{delegate?.managerEmail}</p></td>
                         <td className="px-4 py-4 text-sm"><Link to={`/admin/bookings/${booking.id}`} className="font-semibold text-cyan-800 hover:text-cyan-950">{booking.id}</Link></td>
                         <td className="px-4 py-4 text-sm"><Badge label={booking.status} variant={booking.status === 'cancelled' ? 'danger' : booking.status === 'pending' ? 'warning' : 'success'} /></td>
-                        <td className="px-4 py-4 text-sm"><Badge label={booking.attendanceMarked ? 'attended' : 'not marked'} variant={booking.attendanceMarked ? 'success' : 'warning'} /></td>
+                        <td className="px-4 py-4 text-sm"><Badge label={attendance?.outcome ?? 'pending'} variant={attendance?.outcome === 'attended' ? 'success' : attendance?.outcome === 'absent' ? 'danger' : 'warning'} /></td>
                         <td className="px-4 py-4 text-sm text-slate-700">{invoice ? invoice.status.replace('_', ' ') : 'not required'}</td>
                         <td className="px-4 py-4 text-sm text-slate-700">{certificate?.status ?? 'pending'}</td>
                       </tr>

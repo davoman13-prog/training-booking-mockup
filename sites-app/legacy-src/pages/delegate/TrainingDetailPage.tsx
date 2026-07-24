@@ -4,7 +4,6 @@ import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
 import { formatCurrency, formatDate } from '../../utils/formatters'
-import { trainerNameById } from '../../utils/trainerUtils'
 import useCatalog from '../../hooks/useCatalog'
 import { MockUser } from '../../types'
 
@@ -16,7 +15,7 @@ function statusVariant(status?: string) {
 
 export default function TrainingDetailPage({ currentUser }: { currentUser: MockUser }) {
   const { bookingId } = useParams()
-  const { bookings, courses, delegates, locations, sessions, isLoading, refresh } = useCatalog()
+  const { bookings, courses, delegates, locations, sessions, trainers, attendanceRecords, invoices, certificates, isLoading, refresh } = useCatalog()
   const [cancelling, setCancelling] = useState(false)
   const [cancelError, setCancelError] = useState('')
   const booking = bookings.find((item) => item.id === bookingId && item.delegateId === currentUser.id)
@@ -30,6 +29,10 @@ export default function TrainingDetailPage({ currentUser }: { currentUser: MockU
   const session = sessions.find((item) => item.id === booking.sessionId)
   const location = locations.find((item) => item.id === booking.locationId)
   const delegate = delegates.find((item) => item.id === booking.delegateId)
+  const trainer = trainers.find((item) => item.id === session?.trainerId)
+  const attendance = attendanceRecords.find((item) => item.bookingId === booking.id)
+  const invoice = invoices.find((item) => item.bookingId === booking.id)
+  const certificate = certificates.find((item) => item.bookingId === booking.id)
 
   async function cancelBooking() {
     if (!booking || !window.confirm('Cancel this booking? The place will be released immediately.')) return
@@ -73,7 +76,7 @@ export default function TrainingDetailPage({ currentUser }: { currentUser: MockU
             <div><dt className="font-semibold text-slate-900">Date</dt><dd className="text-slate-600">{session ? formatDate(session.startDate) : 'To be confirmed'}</dd></div>
             <div><dt className="font-semibold text-slate-900">Time</dt><dd className="text-slate-600">{session?.startTime} - {session?.endTime}</dd></div>
             <div><dt className="font-semibold text-slate-900">Location</dt><dd className="text-slate-600">{location?.name}</dd></div>
-            <div><dt className="font-semibold text-slate-900">Trainer</dt><dd className="text-slate-600">{trainerNameById(session?.trainerId)}</dd></div>
+            <div><dt className="font-semibold text-slate-900">Trainer</dt><dd className="text-slate-600">{trainer ? `${trainer.firstName} ${trainer.lastName}` : 'Unassigned'}</dd></div>
           </dl>
         </Card>
 
@@ -82,7 +85,9 @@ export default function TrainingDetailPage({ currentUser }: { currentUser: MockU
           <dl className="mt-4 space-y-3 text-sm">
             <div><dt className="font-semibold text-slate-900">Reference</dt><dd className="text-slate-600">{booking.id}</dd></div>
             <div><dt className="font-semibold text-slate-900">Booking status</dt><dd><Badge label={booking.status} variant={statusVariant(booking.status)} /></dd></div>
-            <div><dt className="font-semibold text-slate-900">Attendance</dt><dd><Badge label={booking.attendanceMarked ? 'attended' : 'not marked'} variant={booking.attendanceMarked ? 'success' : 'warning'} /></dd></div>
+            <div><dt className="font-semibold text-slate-900">Attendance</dt><dd><Badge label={attendance?.outcome ?? 'pending'} variant={statusVariant(attendance?.outcome)} /></dd></div>
+            {invoice ? <div><dt className="font-semibold text-slate-900">Invoice</dt><dd><Badge label={invoice.status} variant={statusVariant(invoice.status)} /></dd></div> : null}
+            {certificate ? <div><dt className="font-semibold text-slate-900">Certificate</dt><dd><Badge label={certificate.status} variant={statusVariant(certificate.status)} /></dd></div> : null}
             <div><dt className="font-semibold text-slate-900">Terms summary</dt><dd className="text-slate-600">{booking.termsAccepted ? 'Terms and conditions accepted for this booking.' : 'Terms acceptance not recorded.'}</dd></div>
             <div><dt className="font-semibold text-slate-900">Special requirements</dt><dd className="text-slate-600">{booking.specialRequirements ?? delegate?.specialRequirements ?? 'None recorded'}</dd></div>
           </dl>
