@@ -20,7 +20,7 @@ export default function Header({ currentUser, navItems, onLogout }: HeaderProps)
             <Link to="/" className="text-xl font-semibold tracking-tight text-slate-950">
               Kalu Training
             </Link>
-            <p className="mt-1 text-sm text-slate-500">Static delegate and admin prototype.</p>
+            <p className="mt-1 text-sm text-slate-500">Course booking and training portal.</p>
           </div>
         </div>
         {currentUser ? (
