@@ -1,91 +1,49 @@
 import assert from "node:assert/strict";
-import { access, readFile, readdir } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-const developmentPreviewMeta =
-  /<meta(?=[^>]*\bname=["']codex-preview["'])(?=[^>]*\bcontent=["']development["'])[^>]*>/i;
-const templateRoot = new URL("../", import.meta.url);
-const previewRoot = new URL("../app/_sites-preview/", import.meta.url);
+const catalogHookUrl = new URL("../legacy-src/hooks/useCatalog.ts", import.meta.url);
+const courseFormUrl = new URL(
+  "../legacy-src/pages/admin/CourseFormPage.tsx",
+  import.meta.url,
+);
 
-async function render() {
-  const workerUrl = new URL("../dist/server/index.js", import.meta.url);
-  workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
-  const { default: worker } = await import(workerUrl.href);
+test("catalogue refresh always reads current server data", async () => {
+  const hook = await readFile(catalogHookUrl, "utf8");
 
-  return worker.fetch(
-    new Request("http://localhost/", {
-      headers: { accept: "text/html" },
-    }),
-    {
-      ASSETS: {
-        fetch: async () => new Response("Not found", { status: 404 }),
-      },
-    },
-    {
-      waitUntil() {},
-      passThroughOnException() {},
-    },
-  );
-}
-
-test("server-renders the starter loading skeleton", async () => {
-  const response = await render();
-  assert.equal(response.status, 200);
-  assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
-
-  const html = await response.text();
-  assert.match(html, developmentPreviewMeta);
-  assert.match(html, /<title>Your site is taking shape<\/title>/i);
-  assert.match(html, /Building your site/);
-  assert.match(html, /Your site is taking shape/);
-  assert.match(
-    html,
-    /Your first version will appear here automatically when it’s ready\./,
-  );
-  assert.doesNotMatch(html, /Codex/);
-  assert.match(html, /react-loading-skeleton/);
-  assert.match(html, /role="status"/);
+  assert.match(hook, /const refresh = useCallback\(async/);
+  assert.match(hook, /cache:\s*"no-store"/);
+  assert.match(hook, /setCatalog\(data\)/);
+  assert.match(hook, /setIsLive\(true\)/);
+  assert.match(hook, /setIsLoading\(false\)/);
+  assert.match(hook, /return \{ \.\.\.catalog, isLive, isLoading, loadError, refresh \}/);
 });
 
-test("keeps the loading skeleton scoped and disposable", async () => {
-  const [preview, css, page, layout, packageJson, files] = await Promise.all([
-    readFile(new URL("SkeletonPreview.tsx", previewRoot), "utf8"),
-    readFile(new URL("preview.css", previewRoot), "utf8"),
-    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../package.json", import.meta.url), "utf8"),
-    readdir(previewRoot),
-  ]);
+test("course form waits for live data and refreshes after saving", async () => {
+  const form = await readFile(courseFormUrl, "utf8");
 
-  assert.deepEqual(files.sort(), ["SkeletonPreview.tsx", "preview.css"]);
-  assert.match(preview, /from "react-loading-skeleton"/);
-  assert.match(preview, /baseColor="#eceae7"/);
-  assert.match(preview, /highlightColor="#f9f8f6"/);
-  assert.match(preview, /duration=\{2\.8\}/);
-  assert.match(preview, /sites-skeleton-search-placeholder/);
-  assert.match(packageJson, /"react-loading-skeleton": "3\.5\.0"/);
+  const refreshIndex = form.indexOf("await refresh()");
+  const savedIndex = form.indexOf("setSaved(true)");
 
-  const shellIndex = preview.indexOf('className="sites-skeleton-shell"');
-  const statusIndex = preview.indexOf('className="sites-skeleton-status"');
-  assert.ok(shellIndex >= 0 && statusIndex > shellIndex);
-  assert.match(css, /position:\s*fixed/);
-  assert.match(css, /inset:\s*0/);
-  assert.match(css, /opacity:\s*0\.52/);
-  assert.match(css, /prefers-reduced-motion:\s*reduce/);
-  assert.doesNotMatch(css, /#020617|canvas|pets|progress/i);
-  assert.doesNotMatch(
-    preview,
-    /loading-spinner|status-mark|status-progress|canvas|cookie|random/i,
+  assert.ok(refreshIndex >= 0, "the form must reload the catalogue after saving");
+  assert.ok(
+    savedIndex > refreshIndex,
+    "success must only be reported after the saved record has been read back",
   );
+  assert.match(form, /isLoading && !isLive/);
+  assert.match(form, /Loading the latest course details/);
+  assert.match(form, /key=\{course \? \[/);
+  assert.match(form, /course\.price \?\? ''/);
+  assert.match(form, /course\.minimumAttendees \?\? ''/);
+  assert.match(form, /course\.tags\.join\('\|'\)/);
+});
 
-  assert.match(page, /export const metadata:\s*Metadata/);
-  assert.match(page, /"codex-preview": "development"/);
-  assert.match(page, /<SkeletonPreview \/>/);
-  assert.match(layout, /title:\s*"Starter Project"/);
-  assert.doesNotMatch(layout, /codex-preview|_sites-preview|themeColor|\bViewport\b/);
-  assert.doesNotMatch(css, /(^|\s)(html|body)\s*\{/m);
+test("derived active state cannot conflict with course status", async () => {
+  const form = await readFile(courseFormUrl, "utf8");
 
-  await assert.rejects(
-    access(new URL("public/_sites-preview", templateRoot)),
+  assert.match(
+    form,
+    /value=\{course && course\.status !== 'cancelled' && course\.status !== 'completed' \? 'active' : 'inactive'\} disabled/,
   );
+  assert.match(form, /aria-label="Active state is derived from status"/);
 });
