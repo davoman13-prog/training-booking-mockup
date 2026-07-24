@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { certificates, invoices } from '../../data/mockData'
 import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
@@ -31,8 +30,6 @@ export default function TrainingDetailPage({ currentUser }: { currentUser: MockU
   const session = sessions.find((item) => item.id === booking.sessionId)
   const location = locations.find((item) => item.id === booking.locationId)
   const delegate = delegates.find((item) => item.id === booking.delegateId)
-  const invoice = invoices.find((item) => item.id === booking.invoiceId)
-  const certificate = certificates.find((item) => item.id === booking.certificateId)
 
   async function cancelBooking() {
     if (!booking || !window.confirm('Cancel this booking? The place will be released immediately.')) return
@@ -105,12 +102,10 @@ export default function TrainingDetailPage({ currentUser }: { currentUser: MockU
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <h2 className="text-lg font-semibold text-slate-950">Invoice</h2>
-          {invoice && invoice.status !== 'not_required' ? (
+          {booking.invoiceId ? (
             <div className="mt-4 space-y-3 text-sm text-slate-600">
-              <p>Status: <span className="font-semibold text-slate-900">{invoice.status}</span></p>
-              <p>Amount: <span className="font-semibold text-slate-900">{formatCurrency(invoice.amount)}</span></p>
-              <p>Due: {formatDate(invoice.dueDate)}</p>
-              <Link to={`/delegate/invoices/${invoice.id}`}><Button variant="secondary">View invoice</Button></Link>
+              <p>Reference: <span className="font-semibold text-slate-900">{booking.invoiceId}</span></p>
+              <p>The invoice record is linked to this live booking.</p>
             </div>
           ) : (
             <p className="mt-4 text-sm text-slate-600">No invoice is required for this booking.</p>
@@ -119,13 +114,10 @@ export default function TrainingDetailPage({ currentUser }: { currentUser: MockU
 
         <Card>
           <h2 className="text-lg font-semibold text-slate-950">Certificate</h2>
-          {certificate ? (
+          {booking.certificateId ? (
             <div className="mt-4 space-y-3 text-sm text-slate-600">
-              <p>Status: <span className="font-semibold text-slate-900">{certificate.status}</span></p>
-              <p>Issued: {certificate.issuedDate ? formatDate(certificate.issuedDate) : 'Pending'}</p>
-              <Link to={`/delegate/certificates/${certificate.id}`}>
-                <Button disabled={certificate.status !== 'available'}>{certificate.status === 'available' ? 'Download certificate' : 'Certificate pending'}</Button>
-              </Link>
+              <p>Reference: <span className="font-semibold text-slate-900">{booking.certificateId}</span></p>
+              <p>The certificate record is linked to this live booking.</p>
             </div>
           ) : (
             <p className="mt-4 text-sm text-slate-600">Certificate status will appear after completed attendance.</p>
@@ -137,8 +129,6 @@ export default function TrainingDetailPage({ currentUser }: { currentUser: MockU
         {cancelError ? <p className="w-full rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-800">{cancelError}</p> : null}
         <Link to="/delegate/dashboard"><Button variant="secondary">Return to dashboard</Button></Link>
         <Link to="/delegate/bookings"><Button variant="ghost">View all bookings</Button></Link>
-        {invoice && invoice.status !== 'not_required' ? <Link to={`/delegate/invoices/${invoice.id}`}><Button variant="ghost">View invoice</Button></Link> : null}
-        {certificate?.status === 'available' ? <Link to={`/delegate/certificates/${certificate.id}`}><Button variant="ghost">View certificate</Button></Link> : null}
         {booking.status !== 'cancelled' && booking.status !== 'completed' ? <Button variant="secondary" onClick={cancelBooking} disabled={cancelling}>{cancelling ? 'Cancelling...' : 'Cancel booking'}</Button> : null}
       </div>
     </div>
