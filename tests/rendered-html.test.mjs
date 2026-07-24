@@ -23,6 +23,10 @@ const sessionRulesUrl = new URL(
   "../legacy-src/utils/sessionRules.ts",
   import.meta.url,
 );
+const locationFormUrl = new URL("../legacy-src/pages/admin/LocationFormPage.tsx", import.meta.url);
+const trainerFormUrl = new URL("../legacy-src/pages/admin/TrainerFormPage.tsx", import.meta.url);
+const locationRouteUrl = new URL("../app/api/locations/[locationId]/route.ts", import.meta.url);
+const trainerRouteUrl = new URL("../app/api/trainers/[trainerId]/route.ts", import.meta.url);
 
 test("catalogue refresh always reads current server data", async () => {
   const hook = await readFile(catalogHookUrl, "utf8");
@@ -101,4 +105,28 @@ test("session summaries and removal rules use live attendee counts", async () =>
   assert.match(rules, /session\.attendeeCount < minimum/);
   assert.match(route, /SESSION_HAS_BOOKINGS/);
   assert.match(route, /existing\.attendeeCount > 0/);
+});
+
+test("location and trainer forms save and refresh live records", async () => {
+  const [locationForm, trainerForm] = await Promise.all([
+    readFile(locationFormUrl, "utf8"),
+    readFile(trainerFormUrl, "utf8"),
+  ]);
+  assert.match(locationForm, /fetch\(editing \? `\/api\/locations/);
+  assert.match(locationForm, /Location saved to the live catalogue/);
+  assert.match(locationForm, /await refresh\(\)/);
+  assert.match(trainerForm, /fetch\(editing \? `\/api\/trainers/);
+  assert.match(trainerForm, /Trainer saved to the live catalogue/);
+  assert.match(trainerForm, /approvedCourseIds/);
+});
+
+test("linked locations and trainers are protected from deletion", async () => {
+  const [locationRoute, trainerRoute] = await Promise.all([
+    readFile(locationRouteUrl, "utf8"),
+    readFile(trainerRouteUrl, "utf8"),
+  ]);
+  assert.match(locationRoute, /courses or sessions are linked/);
+  assert.match(locationRoute, /sessions\.locationId/);
+  assert.match(trainerRoute, /sessions\.trainerId/);
+  assert.match(trainerRoute, /Mark the trainer inactive instead/);
 });
