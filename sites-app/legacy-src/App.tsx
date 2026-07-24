@@ -43,6 +43,7 @@ function App() {
             { label: 'My Bookings', path: '/delegate/bookings' },
             { label: 'Certificates', path: '/delegate/certificates' },
             { label: 'Invoices', path: '/delegate/invoices' },
+            { label: 'My details', path: '/delegate/account' },
           ],
     [currentUser?.role],
   )
