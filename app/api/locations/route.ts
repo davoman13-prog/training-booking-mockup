@@ -1,8 +1,10 @@
 import { getDb } from "../../../db";
 import { locations } from "../../../db/schema";
 import { LocationPayload, locationValues, validateLocationPayload } from "./locationPayload";
+import { requireAdmin } from "../auth/auth";
 
 export async function POST(request: Request) {
+  const denied = await requireAdmin(request); if (denied) return denied;
   try {
     const payload = (await request.json()) as LocationPayload;
     const validationError = validateLocationPayload(payload);

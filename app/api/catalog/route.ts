@@ -16,6 +16,7 @@ import {
   delegates as seedDelegates,
 } from "../../../legacy-src/data/mockData";
 import { delegateProfiles } from "../../../legacy-src/pages/admin/delegateUtils";
+import { currentAdmin, currentDelegate } from "../auth/auth";
 
 function chunks<T>(items: T[], size: number): T[][] {
   const result: T[][] = [];
@@ -123,7 +124,7 @@ async function seedCatalogIfEmpty() {
   }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     await seedCatalogIfEmpty();
     const db = getDb();
@@ -135,6 +136,11 @@ export async function GET() {
       db.select().from(delegates),
       db.select().from(bookings),
     ]);
+
+    const admin = await currentAdmin(request);
+    const delegate = admin ? null : await currentDelegate(request);
+    const visibleBookings = admin ? bookingRows : delegate ? bookingRows.filter((booking) => booking.delegateId === delegate.id) : [];
+    const visibleDelegates = admin ? delegateRows : delegate ? delegateRows.filter((row) => row.id === delegate.id) : [];
 
     return Response.json({
       courses: courseRows.map((course) => ({
@@ -154,15 +160,15 @@ export async function GET() {
         updatedDate: trainer.updatedAt,
       })),
       sessions: sessionRows,
-      delegates: delegateRows.map((delegate) => ({
+      delegates: visibleDelegates.map((delegate) => ({
         ...delegate,
         name: `${delegate.firstName} ${delegate.lastName}`.trim(),
         registrationDate: delegate.createdAt,
-        bookingIds: bookingRows.filter((booking) => booking.delegateId === delegate.id).map((booking) => booking.id),
-        certificateIds: bookingRows.filter((booking) => booking.delegateId === delegate.id && booking.certificateId).map((booking) => booking.certificateId),
-        invoiceIds: bookingRows.filter((booking) => booking.delegateId === delegate.id && booking.invoiceId).map((booking) => booking.invoiceId),
+        bookingIds: visibleBookings.filter((booking) => booking.delegateId === delegate.id).map((booking) => booking.id),
+        certificateIds: visibleBookings.filter((booking) => booking.delegateId === delegate.id && booking.certificateId).map((booking) => booking.certificateId),
+        invoiceIds: visibleBookings.filter((booking) => booking.delegateId === delegate.id && booking.invoiceId).map((booking) => booking.invoiceId),
       })),
-      bookings: bookingRows,
+      bookings: visibleBookings,
     });
   } catch (error) {
     console.error("Catalogue load failed.", error);

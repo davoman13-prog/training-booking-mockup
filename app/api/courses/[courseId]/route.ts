@@ -6,12 +6,14 @@ import {
   courseValues,
   validateCoursePayload,
 } from "../coursePayload";
+import { requireAdmin } from "../../auth/auth";
 
 interface RouteContext {
   params: Promise<{ courseId: string }>;
 }
 
 export async function PUT(request: Request, context: RouteContext) {
+  const denied = await requireAdmin(request); if (denied) return denied;
   try {
     const { courseId } = await context.params;
     const payload = (await request.json()) as CoursePayload;
@@ -45,7 +47,8 @@ export async function PUT(request: Request, context: RouteContext) {
   }
 }
 
-export async function DELETE(_request: Request, context: RouteContext) {
+export async function DELETE(request: Request, context: RouteContext) {
+  const denied = await requireAdmin(request); if (denied) return denied;
   try {
     const { courseId } = await context.params;
     const linkedSession = await getDb()

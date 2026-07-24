@@ -6,12 +6,14 @@ import {
   sessionValues,
   validateSessionPayload,
 } from "../sessionPayload";
+import { requireAdmin } from "../../auth/auth";
 
 interface RouteContext {
   params: Promise<{ sessionId: string }>;
 }
 
 export async function PUT(request: Request, context: RouteContext) {
+  const denied = await requireAdmin(request); if (denied) return denied;
   try {
     const { sessionId } = await context.params;
     const payload = (await request.json()) as SessionPayload;
@@ -45,7 +47,8 @@ export async function PUT(request: Request, context: RouteContext) {
   }
 }
 
-export async function DELETE(_request: Request, context: RouteContext) {
+export async function DELETE(request: Request, context: RouteContext) {
+  const denied = await requireAdmin(request); if (denied) return denied;
   try {
     const { sessionId } = await context.params;
     const [existing] = await getDb()

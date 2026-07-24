@@ -1,6 +1,8 @@
-import { revokeDelegateSession } from "../auth";
+import { revokeAdminSession, revokeDelegateSession } from "../auth";
 
 export async function POST(request: Request) {
-  const cookie = await revokeDelegateSession(request);
-  return Response.json({ loggedOut: true }, { headers: { "Set-Cookie": cookie } });
+  const headers = new Headers();
+  headers.append("Set-Cookie", await revokeDelegateSession(request));
+  headers.append("Set-Cookie", await revokeAdminSession(request));
+  return Response.json({ loggedOut: true }, { headers });
 }

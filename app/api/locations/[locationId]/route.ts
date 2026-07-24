@@ -2,10 +2,12 @@ import { eq } from "drizzle-orm";
 import { getDb } from "../../../../db";
 import { courses, locations, sessions } from "../../../../db/schema";
 import { LocationPayload, locationValues, validateLocationPayload } from "../locationPayload";
+import { requireAdmin } from "../../auth/auth";
 
 interface RouteContext { params: Promise<{ locationId: string }> }
 
 export async function PUT(request: Request, context: RouteContext) {
+  const denied = await requireAdmin(request); if (denied) return denied;
   try {
     const { locationId } = await context.params;
     const payload = (await request.json()) as LocationPayload;
@@ -19,7 +21,8 @@ export async function PUT(request: Request, context: RouteContext) {
   }
 }
 
-export async function DELETE(_request: Request, context: RouteContext) {
+export async function DELETE(request: Request, context: RouteContext) {
+  const denied = await requireAdmin(request); if (denied) return denied;
   try {
     const { locationId } = await context.params;
     const linked = await getDb().select({ id: sessions.id }).from(sessions)
