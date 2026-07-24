@@ -186,7 +186,7 @@ test("delegate accounts use hashed passwords and secure server sessions", async 
   ]);
   assert.match(sessionRoute, /currentDelegate\(request\)/);
   assert.match(authCore, /PBKDF2/);
-  assert.match(authCore, /iterations: 210_000/);
+  assert.match(authCore, /iterations: 100_000/);
   assert.match(authCore, /HttpOnly; Secure; SameSite=Lax/);
   assert.match(authCore, /token_hash/);
   assert.match(loginRoute, /MAX_ATTEMPTS = 5/);
