@@ -1,4 +1,5 @@
 import { env } from "cloudflare:workers";
+import { currentDelegate } from "../auth/auth";
 
 interface BookingPayload {
   courseId?: string;
@@ -14,11 +15,8 @@ export async function POST(request: Request) {
       return Response.json({ code: "INVALID_BOOKING", message: "Course and session are required." }, { status: 400 });
     }
     if (!payload.termsAccepted) return Response.json({ code: "TERMS_REQUIRED", message: "The booking terms must be accepted." }, { status: 400 });
-    const authenticatedEmail = request.headers.get("oai-authenticated-user-email")?.trim().toLowerCase();
-    if (!authenticatedEmail) return Response.json({ code: "NOT_AUTHENTICATED", message: "Sign in before creating a booking." }, { status: 401 });
-    const delegate = await env.DB.prepare("SELECT id, account_status FROM delegates WHERE email = ?").bind(authenticatedEmail).first<{ id: string; account_status: string }>();
-    if (!delegate) return Response.json({ code: "DELEGATE_NOT_FOUND", message: "Complete delegate registration before creating a booking." }, { status: 403 });
-    if (delegate.account_status !== "active") return Response.json({ code: "DELEGATE_INACTIVE", message: "Only active delegates can be booked." }, { status: 409 });
+    const delegate = await currentDelegate(request);
+    if (!delegate) return Response.json({ code: "NOT_AUTHENTICATED", message: "Log in before creating a booking." }, { status: 401 });
     const delegateId = delegate.id;
 
     const session = await env.DB.prepare(

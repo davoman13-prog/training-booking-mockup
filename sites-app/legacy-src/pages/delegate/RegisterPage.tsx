@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from 'react'
+import { FormEvent, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import Card from '../../components/ui/Card'
 import Input from '../../components/ui/Input'
@@ -22,44 +22,28 @@ export default function RegisterPage({ onLogin }: RegisterPageProps) {
   const [managerEmail, setManagerEmail] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const [checkingIdentity, setCheckingIdentity] = useState(true)
-
-  useEffect(() => {
-    void fetch('/api/auth/session', { cache: 'no-store' })
-      .then((response) => response.json())
-      .then((result: { email?: string; registered?: boolean; user?: MockUser }) => {
-        if (result.registered && result.user) {
-          onLogin(result.user)
-          navigate('/delegate/dashboard')
-          return
-        }
-        setEmail(result.email ?? '')
-      })
-      .catch(() => setError('Your secure sign-in could not be verified.'))
-      .finally(() => setCheckingIdentity(false))
-  }, [navigate, onLogin])
+  const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (password !== confirmPassword) {
+      setError('The password confirmation does not match.')
+      return
+    }
     setSubmitting(true)
     setError('')
     try {
-      const response = await fetch('/api/delegates', {
+      const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ firstName, lastName, email, phone, organisation, managerName, managerEmail, accountStatus: 'active' }),
+        body: JSON.stringify({ firstName, lastName, email, phone, organisation, managerName, managerEmail, password, termsAccepted }),
       })
-      const result = await response.json() as { delegate?: { id: string; firstName: string; lastName: string; email: string }; message?: string }
-      if (!response.ok) throw new Error(result.message ?? 'The delegate account could not be created.')
-    const mockUser: MockUser = {
-      id: result.delegate!.id,
-      name: `${result.delegate!.firstName} ${result.delegate!.lastName}`.trim(),
-      email: result.delegate!.email,
-      role: 'delegate',
-    }
+      const result = await response.json() as { user?: MockUser; message?: string }
+      if (!response.ok || !result.user) throw new Error(result.message ?? 'The delegate account could not be created.')
 
     setSubmitted(true)
-    onLogin(mockUser)
+    onLogin(result.user)
     window.setTimeout(() => navigate('/delegate/dashboard'), 700)
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'The delegate account could not be created.')
@@ -73,7 +57,7 @@ export default function RegisterPage({ onLogin }: RegisterPageProps) {
       <div>
         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-cyan-700">Kalu Training registration</p>
         <h1 className="mt-2 text-3xl font-semibold text-slate-900">Create a delegate account</h1>
-        <p className="mt-3 text-sm text-slate-600">Create the delegate profile linked to your verified sign-in. Your profile is stored in the live training register.</p>
+        <p className="mt-3 text-sm text-slate-600">Register with your email address and create a Kalu password. A ChatGPT account is not required.</p>
       </div>
       <Card>
         {submitted ? (
@@ -98,7 +82,7 @@ export default function RegisterPage({ onLogin }: RegisterPageProps) {
               </div>
               <div>
                 <label className="text-sm font-semibold text-slate-900">Email</label>
-                <Input value={checkingIdentity ? 'Checking secure identity…' : email} type="email" placeholder="alice@example.com" readOnly required />
+                <Input value={email} onChange={(event) => setEmail(event.target.value)} type="email" placeholder="alice@example.com" autoComplete="email" required />
               </div>
               <div>
                 <label className="text-sm font-semibold text-slate-900">Phone</label>
@@ -116,6 +100,14 @@ export default function RegisterPage({ onLogin }: RegisterPageProps) {
                 <label className="text-sm font-semibold text-slate-900">Practice manager email</label>
                 <Input value={managerEmail} onChange={(event) => setManagerEmail(event.target.value)} type="email" placeholder="manager@example.com" required />
               </div>
+              <div>
+                <label className="text-sm font-semibold text-slate-900">Password</label>
+                <Input value={password} onChange={(event) => setPassword(event.target.value)} type="password" placeholder="At least 12 characters" autoComplete="new-password" minLength={12} required />
+              </div>
+              <div>
+                <label className="text-sm font-semibold text-slate-900">Confirm password</label>
+                <Input value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} type="password" placeholder="Repeat your password" autoComplete="new-password" minLength={12} required />
+              </div>
             </div>
             <label className="flex items-start gap-3 rounded-2xl bg-slate-50 p-4 text-sm text-slate-800">
               <input
@@ -128,7 +120,7 @@ export default function RegisterPage({ onLogin }: RegisterPageProps) {
               <span>I accept the terms and conditions for delegate registration.</span>
             </label>
             <div className="flex justify-end">
-              <Button type="submit" disabled={!termsAccepted || submitting || checkingIdentity || !email}>{submitting ? 'Registering...' : 'Register and continue'}</Button>
+              <Button type="submit" disabled={!termsAccepted || submitting}>{submitting ? 'Registering...' : 'Register and continue'}</Button>
             </div>
           </form>
         )}
