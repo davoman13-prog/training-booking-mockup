@@ -12,30 +12,39 @@ import {
   trainers as seedTrainers,
 } from "../../../legacy-src/data/mockData";
 
+function chunks<T>(items: T[], size: number): T[][] {
+  const result: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    result.push(items.slice(index, index + size));
+  }
+  return result;
+}
+
 async function seedCatalogIfEmpty() {
   const db = getDb();
   const existing = await db.select({ id: courses.id }).from(courses).limit(1);
   if (existing.length > 0) return;
 
-  await db.insert(locations).values(
-    seedLocations.map((location) => ({
+  const locationValues = seedLocations.map((location) => ({
       ...location,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-    })),
-  );
+  }));
+  for (const batch of chunks(locationValues, 5)) {
+    await db.insert(locations).values(batch).onConflictDoNothing();
+  }
 
-  await db.insert(trainers).values(
-    seedTrainers.map((trainer) => ({
+  const trainerValues = seedTrainers.map((trainer) => ({
       ...trainer,
       approvedCourseIds: JSON.stringify(trainer.approvedCourseIds),
       createdAt: trainer.createdDate,
       updatedAt: trainer.updatedDate,
-    })),
-  );
+  }));
+  for (const batch of chunks(trainerValues, 5)) {
+    await db.insert(trainers).values(batch).onConflictDoNothing();
+  }
 
-  await db.insert(courses).values(
-    seedCourses.map((course) => ({
+  const courseValues = seedCourses.map((course) => ({
       id: course.id,
       title: course.title,
       category: course.category,
@@ -55,17 +64,20 @@ async function seedCatalogIfEmpty() {
       outcomes: JSON.stringify(course.outcomes),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-    })),
-  );
+  }));
+  for (const batch of chunks(courseValues, 5)) {
+    await db.insert(courses).values(batch).onConflictDoNothing();
+  }
 
-  await db.insert(sessions).values(
-    seedSessions.map((session) => ({
+  const sessionValues = seedSessions.map((session) => ({
       ...session,
       trainerId: session.trainerId ?? null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-    })),
-  );
+  }));
+  for (const batch of chunks(sessionValues, 5)) {
+    await db.insert(sessions).values(batch).onConflictDoNothing();
+  }
 }
 
 export async function GET() {
@@ -99,6 +111,7 @@ export async function GET() {
       sessions: sessionRows,
     });
   } catch (error) {
+    console.error("Catalogue load failed.", error);
     return Response.json(
       {
         code: "CATALOGUE_UNAVAILABLE",
