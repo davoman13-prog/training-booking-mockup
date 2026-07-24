@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { courses, sessions } from '../../data/mockData'
 import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
@@ -9,6 +8,7 @@ import Select from '../../components/ui/Select'
 import Table from '../../components/ui/Table'
 import { formatCurrency, formatDate } from '../../utils/formatters'
 import { Course } from '../../types'
+import useCatalog from '../../hooks/useCatalog'
 
 const anyValue = 'any'
 
@@ -25,7 +25,7 @@ function isActive(course: Course) {
   return course.status !== 'cancelled' && course.status !== 'completed'
 }
 
-function upcomingSessionCount(course: Course) {
+function upcomingSessionCount(course: Course, sessions: ReturnType<typeof useCatalog>['sessions']) {
   return sessions.filter((session) => session.courseId === course.id && session.status === 'scheduled').length
 }
 
@@ -41,6 +41,7 @@ function durationSortValue(duration: string) {
 }
 
 export default function ManageCoursesPage() {
+  const { courses, sessions, isLive } = useCatalog()
   const [searchParams] = useSearchParams()
   const [searchTerm, setSearchTerm] = useState(searchParams.get('search') ?? '')
   const [category, setCategory] = useState(searchParams.get('category') ?? anyValue)
@@ -49,8 +50,8 @@ export default function ManageCoursesPage() {
   const [status, setStatus] = useState(searchParams.get('status') ?? anyValue)
   const [sortBy, setSortBy] = useState('name-az')
 
-  const categories = useMemo(() => Array.from(new Set(courses.map((course) => course.category))).sort(), [])
-  const statuses = useMemo(() => Array.from(new Set(courses.map((course) => course.status))).sort(), [])
+  const categories = useMemo(() => Array.from(new Set(courses.map((course) => course.category))).sort(), [courses])
+  const statuses = useMemo(() => Array.from(new Set(courses.map((course) => course.status))).sort(), [courses])
   const activeFilterCount = [searchTerm.trim(), category !== anyValue, funding !== anyValue, active !== anyValue, status !== anyValue].filter(Boolean).length
 
   const filteredCourses = useMemo(() => {
@@ -74,11 +75,11 @@ export default function ManageCoursesPage() {
         if (sortBy === 'price') return (a.price ?? 0) - (b.price ?? 0)
         if (sortBy === 'duration') return durationSortValue(a.duration) - durationSortValue(b.duration)
         if (sortBy === 'minimum') return (a.minimumAttendees ?? 0) - (b.minimumAttendees ?? 0)
-        if (sortBy === 'sessions') return upcomingSessionCount(b) - upcomingSessionCount(a)
+        if (sortBy === 'sessions') return upcomingSessionCount(b, sessions) - upcomingSessionCount(a, sessions)
         if (sortBy === 'updated') return lastUpdated(b).localeCompare(lastUpdated(a))
         return 0
       })
-  }, [active, category, funding, searchTerm, sortBy, status])
+  }, [active, category, courses, funding, searchTerm, sessions, sortBy, status])
 
   function clearFilters() {
     setSearchTerm('')
@@ -95,6 +96,9 @@ export default function ManageCoursesPage() {
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-cyan-700">Courses</p>
           <h1 className="mt-2 text-3xl font-semibold text-slate-950">Manage course catalogue</h1>
+          <p className={`mt-2 text-sm font-semibold ${isLive ? 'text-emerald-700' : 'text-amber-700'}`}>
+            {isLive ? 'Connected to the live catalogue' : 'Loading the live catalogue'}
+          </p>
         </div>
         <Link to="/admin/courses/new">
           <Button>Add new course</Button>
@@ -186,7 +190,7 @@ export default function ManageCoursesPage() {
               <td className="px-4 py-4 text-sm text-slate-700">{course.duration}</td>
               <td className="px-4 py-4 text-sm text-slate-700">{course.minimumAttendees ?? '-'} / {course.capacity}</td>
               <td className="px-4 py-4 text-sm"><Badge label={isActive(course) ? 'active' : 'inactive'} variant={isActive(course) ? 'success' : 'default'} /></td>
-              <td className="px-4 py-4 text-sm text-slate-700">{upcomingSessionCount(course)}</td>
+              <td className="px-4 py-4 text-sm text-slate-700">{upcomingSessionCount(course, sessions)}</td>
               <td className="px-4 py-4 text-sm"><Badge label={course.status.replace('_', ' ')} variant={course.status === 'open' ? 'success' : course.status === 'cancelled' ? 'danger' : 'warning'} /></td>
               <td className="px-4 py-4 text-sm text-slate-700">{formatDate(lastUpdated(course))}</td>
               <td className="px-4 py-4 text-right text-sm">
