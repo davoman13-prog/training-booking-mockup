@@ -42,6 +42,9 @@ const delegateDashboardUrl = new URL("../legacy-src/pages/delegate/DashboardPage
 const myBookingsUrl = new URL("../legacy-src/pages/delegate/MyBookingsPage.tsx", import.meta.url);
 const certificatesUrl = new URL("../legacy-src/pages/delegate/CertificatesPage.tsx", import.meta.url);
 const invoicesUrl = new URL("../legacy-src/pages/delegate/InvoicesPage.tsx", import.meta.url);
+const accountPageUrl = new URL("../legacy-src/pages/delegate/AccountPage.tsx", import.meta.url);
+const accountProfileUrl = new URL("../app/api/account/profile/route.ts", import.meta.url);
+const accountPasswordUrl = new URL("../app/api/account/password/route.ts", import.meta.url);
 const authSessionUrl = new URL("../app/api/auth/session/route.ts", import.meta.url);
 const authCoreUrl = new URL("../app/api/auth/auth.ts", import.meta.url);
 const authLoginUrl = new URL("../app/api/auth/login/route.ts", import.meta.url);
@@ -266,4 +269,21 @@ test("delegate account pages never mix live records with prototype finance data"
   assert.match(pages[1], /booking\.invoiceId \? 'Recorded'/);
   assert.match(pages[3], /Only certificates genuinely linked/);
   assert.match(pages[4], /Only invoices genuinely linked/);
+});
+
+test("delegates can securely maintain their own profile and password", async () => {
+  const [page, profile, password] = await Promise.all([
+    readFile(accountPageUrl, "utf8"),
+    readFile(accountProfileUrl, "utf8"),
+    readFile(accountPasswordUrl, "utf8"),
+  ]);
+  assert.match(profile, /currentDelegate\(request\)/);
+  assert.match(profile, /WHERE id = \?/);
+  assert.doesNotMatch(profile, /SET email =/);
+  assert.match(password, /verifyPassword\(payload\.currentPassword/);
+  assert.match(password, /hashPassword\(payload\.newPassword/);
+  assert.match(password, /DELETE FROM delegate_auth_sessions.*id != \?/s);
+  assert.match(page, /fetch\('\/api\/account\/profile'/);
+  assert.match(page, /fetch\('\/api\/account\/password'/);
+  assert.match(page, /Email changes will be enabled with email verification/);
 });
