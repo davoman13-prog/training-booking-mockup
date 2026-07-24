@@ -41,7 +41,7 @@ function statusVariant(status: string): BadgeVariant {
 export default function CourseFormPage() {
   const { courseId } = useParams()
   const navigate = useNavigate()
-  const { courses, locations, sessions, isLive } = useCatalog()
+  const { courses, locations, sessions, isLive, isLoading, loadError, refresh } = useCatalog()
   const course = useMemo(() => courses.find((item) => item.id === courseId), [courseId, courses])
   const editing = Boolean(course)
   const [saved, setSaved] = useState(false)
@@ -92,6 +92,7 @@ export default function CourseFormPage() {
       const result = await response.json() as { course?: { id: string }; message?: string }
       if (!response.ok) throw new Error(result.message ?? 'The course could not be saved.')
 
+      await refresh()
       setSaved(true)
       if (!editing && result.course?.id) {
         navigate(`/admin/courses/${result.course.id}/edit`, { replace: true })
@@ -135,7 +136,7 @@ export default function CourseFormPage() {
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-cyan-700">{editing ? 'Edit course' : 'Add course'}</p>
           <h1 className="mt-2 text-3xl font-semibold text-slate-950">{editing ? `Edit Course: ${course?.title}` : 'Create new course'}</h1>
           {editing ? <p className="mt-2 text-sm text-slate-600">{upcomingSessions} upcoming session{upcomingSessions === 1 ? '' : 's'} linked to this course.</p> : null}
-          <p className={`mt-1 text-sm font-semibold ${isLive ? 'text-emerald-700' : 'text-amber-700'}`}>{isLive ? 'Connected to the live catalogue' : 'Loading the live catalogue'}</p>
+          <p className={`mt-1 text-sm font-semibold ${isLive ? 'text-emerald-700' : 'text-amber-700'}`}>{isLive ? 'Connected to the live catalogue' : isLoading ? 'Loading the live catalogue' : 'Live catalogue unavailable'}</p>
         </div>
         <Link to="/admin/courses">
           <Button variant="secondary">Back to courses</Button>
@@ -149,6 +150,11 @@ export default function CourseFormPage() {
       {saveError ? (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-800">
           {saveError}
+        </div>
+      ) : null}
+      {loadError ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-800">
+          {loadError}
         </div>
       ) : null}
       {removeMessage ? (
@@ -166,8 +172,29 @@ export default function CourseFormPage() {
           <Card><p className="text-sm text-slate-500">Booked delegates</p><p className="mt-2 text-3xl font-semibold text-slate-950">{linkedBookings.length}</p></Card>
         </div>
       ) : null}
+      {isLoading && !isLive ? (
+        <Card>
+          <p className="text-sm text-slate-600">Loading the latest course details…</p>
+        </Card>
+      ) : isLive && (course || !courseId) ? (
       <Card>
-        <form className="space-y-6" onSubmit={handleSubmit}>
+        <form
+          key={course ? [
+            course.id,
+            course.title,
+            course.category,
+            course.fundingType,
+            course.price ?? '',
+            course.minimumAttendees ?? '',
+            course.capacity,
+            course.duration,
+            course.status,
+            course.locationId,
+            course.tags.join('|'),
+          ].join(':') : 'new-course'}
+          className="space-y-6"
+          onSubmit={handleSubmit}
+        >
           <div className="grid gap-6 lg:grid-cols-2">
             <div>
               <label className="text-sm font-semibold text-slate-900">Course name</label>
@@ -222,7 +249,7 @@ export default function CourseFormPage() {
             </div>
             <div>
               <label className="text-sm font-semibold text-slate-900">Active state</label>
-              <Select defaultValue={course && course.status !== 'cancelled' && course.status !== 'completed' ? 'active' : 'inactive'}>
+              <Select value={course && course.status !== 'cancelled' && course.status !== 'completed' ? 'active' : 'inactive'} disabled aria-label="Active state is derived from status">
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
               </Select>
@@ -243,6 +270,7 @@ export default function CourseFormPage() {
           </div>
         </form>
       </Card>
+      ) : null}
       {course ? (
         <Card>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
