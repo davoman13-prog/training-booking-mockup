@@ -7,6 +7,14 @@ const courseFormUrl = new URL(
   "../legacy-src/pages/admin/CourseFormPage.tsx",
   import.meta.url,
 );
+const sessionFormUrl = new URL(
+  "../legacy-src/pages/admin/SessionFormPage.tsx",
+  import.meta.url,
+);
+const sessionPayloadUrl = new URL(
+  "../app/api/sessions/sessionPayload.ts",
+  import.meta.url,
+);
 
 test("catalogue refresh always reads current server data", async () => {
   const hook = await readFile(catalogHookUrl, "utf8");
@@ -46,4 +54,24 @@ test("derived active state cannot conflict with course status", async () => {
     /value=\{course && course\.status !== 'cancelled' && course\.status !== 'completed' \? 'active' : 'inactive'\} disabled/,
   );
   assert.match(form, /aria-label="Active state is derived from status"/);
+});
+
+test("session form saves to the live API and reads the record back", async () => {
+  const form = await readFile(sessionFormUrl, "utf8");
+
+  assert.match(form, /fetch\(editing \? `\/api\/sessions\/\$\{session!\.id\}` : '\/api\/sessions'/);
+  assert.match(form, /await refresh\(\)/);
+  assert.match(form, /Session saved to the live catalogue\./);
+  assert.match(form, /name="availableSeats"[\s\S]*disabled/);
+  assert.match(form, /Math\.max\(Number\(formState\.capacity/);
+});
+
+test("session API rejects inconsistent dates and capacity", async () => {
+  const payload = await readFile(sessionPayloadUrl, "utf8");
+
+  assert.match(payload, /End date cannot be before the start date/);
+  assert.match(payload, /End time must be after the start time/);
+  assert.match(payload, /Capacity must be at least 1/);
+  assert.match(payload, /Booked count cannot be greater than capacity/);
+  assert.match(payload, /availableSeats: payload\.capacity! - attendeeCount/);
 });

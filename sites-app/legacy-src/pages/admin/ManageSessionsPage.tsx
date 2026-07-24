@@ -1,6 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { courses, locations, sessions, trainers } from '../../data/mockData'
 import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
@@ -9,8 +8,8 @@ import Select from '../../components/ui/Select'
 import Table from '../../components/ui/Table'
 import { formatDate } from '../../utils/formatters'
 import { activeBookingCount, daysUntilSession, riskExplanation, sessionDisplayStatus, statusVariant } from '../../utils/sessionRules'
-import { trainerNameById } from '../../utils/trainerUtils'
 import { Session } from '../../types'
+import useCatalog from '../../hooks/useCatalog'
 
 const anyValue = 'any'
 
@@ -19,6 +18,7 @@ function sessionCapacity(session: Session) {
 }
 
 export default function ManageSessionsPage() {
+  const { courses, locations, sessions, trainers, isLive, isLoading } = useCatalog()
   const [searchParams] = useSearchParams()
   const statusParam = searchParams.get('status')
   const [searchTerm, setSearchTerm] = useState(searchParams.get('search') ?? '')
@@ -30,6 +30,10 @@ export default function ManageSessionsPage() {
   const [sortBy, setSortBy] = useState('date-oldest')
 
   const statuses = ['Open', 'Confirmed', 'Full', 'At risk', 'On Hold', 'Cancelled', 'Completed']
+  const trainerNameById = useCallback((trainerId?: string) => {
+    const trainer = trainers.find((item) => item.id === trainerId)
+    return trainer ? `${trainer.firstName} ${trainer.lastName}` : 'Unassigned'
+  }, [trainers])
   const activeFilterCount = [searchTerm.trim(), locationId !== anyValue, trainerId !== anyValue, status !== anyValue, funding !== anyValue, timing !== anyValue].filter(Boolean).length
 
   const filteredSessions = useMemo(() => {
@@ -71,7 +75,7 @@ export default function ManageSessionsPage() {
         if (sortBy === 'status') return sessionDisplayStatus(a, courseA).localeCompare(sessionDisplayStatus(b, courseB))
         return 0
       })
-  }, [funding, locationId, searchTerm, sortBy, status, timing, trainerId])
+  }, [courses, funding, locationId, locations, searchTerm, sessions, sortBy, status, timing, trainerId, trainerNameById])
 
   function clearFilters() {
     setSearchTerm('')
@@ -89,6 +93,9 @@ export default function ManageSessionsPage() {
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-cyan-700">Sessions</p>
           <h1 className="mt-2 text-3xl font-semibold text-slate-950">Manage course sessions</h1>
+          <p className={`mt-2 text-sm font-semibold ${isLive ? 'text-emerald-700' : 'text-amber-700'}`}>
+            {isLive ? 'Connected to the live catalogue' : isLoading ? 'Loading the live catalogue' : 'Live catalogue unavailable'}
+          </p>
         </div>
         <Link to="/admin/sessions/new">
           <Button>Add new session</Button>
