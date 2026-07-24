@@ -53,6 +53,7 @@ export default function SessionFormPage() {
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState('')
   const [removeError, setRemoveError] = useState('')
+  const [confirmingRemove, setConfirmingRemove] = useState(false)
   const capacity = session ? session.attendeeCount + session.availableSeats : 0
   const [formState, setFormState] = useState<SessionFormState>(() => {
     const draft = readDraft()
@@ -182,8 +183,6 @@ export default function SessionFormPage() {
       setRemoveError('This session cannot be removed because it has booked delegates.')
       return
     }
-    if (!window.confirm(`Remove this ${course?.title ?? ''} session from the live catalogue?`)) return
-
     setRemoveError('')
     try {
       const response = await fetch(`/api/sessions/${session.id}`, { method: 'DELETE' })
@@ -401,7 +400,15 @@ export default function SessionFormPage() {
                     : 'This session has no booked delegates and can be removed.'}
                 </p>
               </div>
-              <Button type="button" variant="secondary" onClick={handleRemove}>Remove session</Button>
+              {confirmingRemove ? (
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <span className="text-sm font-semibold text-red-700">Remove this session permanently?</span>
+                  <Button type="button" variant="secondary" onClick={() => setConfirmingRemove(false)}>Cancel</Button>
+                  <Button type="button" onClick={handleRemove}>Confirm removal</Button>
+                </div>
+              ) : (
+                <Button type="button" variant="secondary" onClick={() => setConfirmingRemove(true)}>Remove session</Button>
+              )}
             </div>
           </Card>
         </>
