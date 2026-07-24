@@ -1,6 +1,5 @@
 import { FormEvent, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { courses, delegates, locations, sessions } from '../../data/mockData'
 import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
@@ -10,12 +9,14 @@ import Select from '../../components/ui/Select'
 import { formatCurrency, formatDate } from '../../utils/formatters'
 import { canBookSession, delegateSessionAvailabilityMessage } from '../../utils/sessionRules'
 import { trainerNameById } from '../../utils/trainerUtils'
+import useCatalog from '../../hooks/useCatalog'
 
 export default function BookingFormPage() {
   const { courseId, sessionId } = useParams()
   const navigate = useNavigate()
-  const course = useMemo(() => courses.find((item) => item.id === courseId), [courseId])
-  const courseSessions = useMemo(() => sessions.filter((item) => item.courseId === courseId), [courseId])
+  const { courses, delegates, locations, sessions, refresh, isLive } = useCatalog()
+  const course = useMemo(() => courses.find((item) => item.id === courseId), [courseId, courses])
+  const courseSessions = useMemo(() => sessions.filter((item) => item.courseId === courseId), [courseId, sessions])
   const selectedSession = useMemo(
     () => courseSessions.find((item) => item.id === sessionId) ?? courseSessions.find((item) => item.status === 'scheduled'),
     [courseSessions, sessionId],
@@ -24,6 +25,8 @@ export default function BookingFormPage() {
   const [delegateId, setDelegateId] = useState(delegates[0]?.id ?? '')
   const [specialRequirements, setSpecialRequirements] = useState('')
   const [termsAccepted, setTermsAccepted] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState('')
 
   if (!course || !selectedSession) {
     return <p className="rounded-2xl border border-slate-200 bg-white p-8 text-slate-700">Course or session not found.</p>
@@ -42,10 +45,26 @@ export default function BookingFormPage() {
       ? 'This session is full and cannot accept new bookings.'
       : ''
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!course || !selectedSession || bookingBlocked) return
-    navigate(`/delegate/confirmation?courseId=${course.id}&sessionId=${selectedSession.id}`)
+    if (!course || !selectedSession || bookingBlocked || !delegateId) return
+    setSubmitting(true)
+    setSubmitError('')
+    try {
+      const response = await fetch('/api/bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ delegateId, courseId: course.id, sessionId: selectedSession.id, specialRequirements, termsAccepted }),
+      })
+      const result = await response.json() as { booking?: { id: string }; message?: string }
+      if (!response.ok) throw new Error(result.message ?? 'The booking could not be created.')
+      await refresh()
+      navigate(`/delegate/confirmation?courseId=${course.id}&sessionId=${selectedSession.id}&bookingId=${result.booking?.id}`)
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : 'The booking could not be created.')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -55,7 +74,7 @@ export default function BookingFormPage() {
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-cyan-700">Booking form</p>
             <h1 className="mt-2 text-3xl font-semibold text-slate-950">{course.title}</h1>
-            <p className="mt-2 text-sm text-slate-600">Confirm the selected session before completing this mock booking.</p>
+            <p className="mt-2 text-sm text-slate-600">Confirm the selected session to create a live booking.</p>
           </div>
           <Badge label={course.fundingType === 'funded' ? 'No payment required' : 'Unfunded course'} variant={course.fundingType === 'funded' ? 'success' : 'warning'} />
         </div>
@@ -93,6 +112,8 @@ export default function BookingFormPage() {
 
       <Card>
         <form className="space-y-6" onSubmit={handleSubmit}>
+          {!isLive ? <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800">The live booking service is not connected. Please reload before booking.</div> : null}
+          {submitError ? <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-800">{submitError}</div> : null}
           <div className="grid gap-6 lg:grid-cols-2">
             <div>
               <label className="text-sm font-semibold text-slate-900">Delegate</label>
@@ -132,9 +153,9 @@ export default function BookingFormPage() {
             I accept the terms and conditions for booking this course.
           </label>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="text-sm text-slate-600">No real booking, payment, email, or PDF will be created.</div>
-            <Button type="submit" disabled={!termsAccepted || bookingBlocked}>
-              {bookingBlocked ? 'Booking unavailable' : 'Confirm booking'}
+            <div className="text-sm text-slate-600">The booking and session capacity will update immediately. Payment and email follow in later production stages.</div>
+            <Button type="submit" disabled={!termsAccepted || bookingBlocked || submitting || !isLive}>
+              {bookingBlocked ? 'Booking unavailable' : submitting ? 'Creating booking...' : 'Confirm booking'}
             </Button>
           </div>
         </form>

@@ -4,14 +4,18 @@ import {
   locations as fallbackLocations,
   sessions as fallbackSessions,
   trainers as fallbackTrainers,
+  delegates as fallbackDelegates,
+  bookings as fallbackBookings,
 } from "../data/mockData";
-import { Course, Location, Session, Trainer } from "../types";
+import { Booking, Course, Delegate, Location, Session, Trainer } from "../types";
 
 interface Catalog {
   courses: Course[];
   locations: Location[];
   sessions: Session[];
   trainers: Trainer[];
+  delegates: Delegate[];
+  bookings: Booking[];
 }
 
 const fallbackCatalog: Catalog = {
@@ -19,6 +23,8 @@ const fallbackCatalog: Catalog = {
   locations: fallbackLocations,
   sessions: fallbackSessions,
   trainers: fallbackTrainers,
+  delegates: fallbackDelegates,
+  bookings: fallbackBookings,
 };
 
 export default function useCatalog() {
