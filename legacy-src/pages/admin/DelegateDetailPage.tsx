@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
@@ -12,12 +12,14 @@ import { formatDate } from '../../utils/formatters'
 
 export default function DelegateDetailPage() {
   const { delegateId } = useParams()
+  const navigate = useNavigate()
   const { delegates, bookings, courses, sessions, isLoading, refresh } = useCatalog()
   const delegate = delegates.find((item) => item.id === delegateId)
   const [form, setForm] = useState({ firstName: '', lastName: '', email: '', phone: '', organisation: '', managerName: '', managerEmail: '', accountStatus: 'active', adminNotes: '', specialRequirements: '' })
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  const [confirmRemove, setConfirmRemove] = useState(false)
 
   useEffect(() => {
     if (!delegate) return
@@ -43,6 +45,19 @@ export default function DelegateDetailPage() {
       setMessage('Delegate saved and read back from the live database.')
     } catch (caught) { setError(caught instanceof Error ? caught.message : 'The delegate could not be saved.') } finally { setSaving(false) }
   }
+  async function handleRemove() {
+    setSaving(true); setError('')
+    try {
+      const response = await fetch(`/api/delegates/${delegate.id}`, { method: 'DELETE' })
+      const result = await response.json() as { message?: string }
+      if (!response.ok) throw new Error(result.message ?? 'The delegate could not be removed.')
+      await refresh()
+      navigate('/admin/delegates')
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'The delegate could not be removed.')
+      setSaving(false)
+    }
+  }
 
   return <div className="space-y-6">
     <div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-sm font-semibold uppercase tracking-[0.18em] text-cyan-700">Delegate detail</p><h1 className="mt-2 text-3xl font-semibold text-slate-950">{delegate.name}</h1><p className="mt-2 text-sm text-slate-600">{delegate.organisation} / registered {delegate.registrationDate ? formatDate(delegate.registrationDate) : 'Unknown'}</p></div><Link to="/admin/delegates"><Button variant="secondary">Back to delegates</Button></Link></div>
@@ -55,8 +70,9 @@ export default function DelegateDetailPage() {
       <div className="grid gap-5 md:grid-cols-2"><div><label className="text-sm font-semibold">Practice manager</label><Input value={form.managerName} onChange={(e) => field('managerName', e.target.value)} required /></div><div><label className="text-sm font-semibold">Manager email</label><Input type="email" value={form.managerEmail} onChange={(e) => field('managerEmail', e.target.value)} required /></div></div>
       <div><label className="text-sm font-semibold">Admin notes</label><Textarea rows={3} value={form.adminNotes} onChange={(e) => field('adminNotes', e.target.value)} /></div>
       <div><label className="text-sm font-semibold">Standing special requirements</label><Textarea rows={3} value={form.specialRequirements} onChange={(e) => field('specialRequirements', e.target.value)} /></div>
-      <div className="flex justify-end"><Button type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save delegate'}</Button></div>
+      <div className="flex flex-wrap justify-between gap-3"><Button type="button" variant="ghost" onClick={() => setConfirmRemove(true)}>Remove delegate</Button><Button type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save delegate'}</Button></div>
     </form></Card>
+    {confirmRemove ? <Card><h2 className="text-xl font-semibold text-rose-800">Remove delegate?</h2><p className="mt-2 text-sm text-slate-600">This is allowed only when the delegate has no booking records.</p><div className="mt-4 flex gap-3"><Button type="button" variant="secondary" onClick={() => setConfirmRemove(false)}>Keep delegate</Button><Button type="button" onClick={handleRemove} disabled={saving}>Confirm removal</Button></div></Card> : null}
     <Table headers={['Reference', 'Course', 'Session', 'Status', 'Payment']}>{delegateBookings.map((booking) => {
       const course = courses.find((item) => item.id === booking.courseId); const session = sessions.find((item) => item.id === booking.sessionId)
       return <tr key={booking.id} className="border-t border-slate-200"><td className="px-4 py-4 text-sm"><Link className="font-semibold text-cyan-800" to={`/admin/bookings/${booking.id}`}>{booking.id}</Link></td><td className="px-4 py-4 text-sm">{course?.title}</td><td className="px-4 py-4 text-sm">{session ? formatDate(session.startDate) : '-'}</td><td className="px-4 py-4 text-sm"><Badge label={booking.status} /></td><td className="px-4 py-4 text-sm">{booking.paymentRequired ? 'Required' : 'Funded'}</td></tr>

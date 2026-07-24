@@ -1,4 +1,4 @@
-import { and, eq, ne } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { getDb } from "../../../../db";
 import { bookings, delegates } from "../../../../db/schema";
 import { DelegatePayload, delegateValues, validateDelegatePayload } from "../delegatePayload";
@@ -23,9 +23,9 @@ export async function PUT(request: Request, context: RouteContext) {
 export async function DELETE(_request: Request, context: RouteContext) {
   try {
     const { delegateId } = await context.params;
-    const [activeBooking] = await getDb().select({ id: bookings.id }).from(bookings)
-      .where(and(eq(bookings.delegateId, delegateId), ne(bookings.status, "cancelled"))).limit(1);
-    if (activeBooking) return Response.json({ code: "DELEGATE_HAS_BOOKINGS", message: "Cancel this delegate's active bookings before removing their record." }, { status: 409 });
+    const [linkedBooking] = await getDb().select({ id: bookings.id }).from(bookings)
+      .where(eq(bookings.delegateId, delegateId)).limit(1);
+    if (linkedBooking) return Response.json({ code: "DELEGATE_HAS_BOOKINGS", message: "Remove this delegate's booking records before removing their profile." }, { status: 409 });
     const [delegate] = await getDb().delete(delegates).where(eq(delegates.id, delegateId)).returning();
     if (!delegate) return Response.json({ code: "DELEGATE_NOT_FOUND", message: "The delegate was not found." }, { status: 404 });
     return Response.json({ deleted: true, delegateId });
