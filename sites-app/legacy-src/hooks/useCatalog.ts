@@ -52,6 +52,8 @@ export default function useCatalog() {
 
   useEffect(() => {
     const controller = new AbortController();
+    // The initial request deliberately drives this hook's loading state.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void refresh(controller.signal).catch(() => undefined);
     return () => controller.abort();
   }, [refresh]);
