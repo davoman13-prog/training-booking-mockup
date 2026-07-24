@@ -1,5 +1,5 @@
-import { useMemo } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useMemo, useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
@@ -15,7 +15,10 @@ function courseActiveLabel(course: Course) {
 
 export default function TrainerDetailPage() {
   const { trainerId } = useParams()
+  const navigate = useNavigate()
   const { courses, locations, sessions, trainers, isLive, isLoading } = useCatalog()
+  const [confirmingRemove, setConfirmingRemove] = useState(false)
+  const [removeError, setRemoveError] = useState('')
   const trainer = trainers.find((item) => item.id === trainerId)
   const sessionLocation = (session: Session) => locations.find((location) => location.id === session.locationId)?.name ?? 'Location to be confirmed'
   const sessionCourse = (session: Session) => courses.find((course) => course.id === session.courseId)
@@ -58,6 +61,19 @@ export default function TrainerDetailPage() {
     .map((courseId) => courses.find((course) => course.id === courseId))
     .filter((course): course is Course => Boolean(course))
   const displayTrainer = trainer
+
+  async function removeTrainer() {
+    setRemoveError('')
+    try {
+      const response = await fetch(`/api/trainers/${trainer.id}`, { method: 'DELETE' })
+      const result = await response.json() as { message?: string }
+      if (!response.ok) throw new Error(result.message ?? 'The trainer could not be removed.')
+      navigate('/admin/trainers', { replace: true })
+    } catch (error) {
+      setRemoveError(error instanceof Error ? error.message : 'The trainer could not be removed.')
+      setConfirmingRemove(false)
+    }
+  }
 
   function renderSessionRows(rows: Session[]) {
     if (!rows.length) return <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-sm text-slate-600">No sessions in this category.</div>
@@ -166,6 +182,28 @@ export default function TrainerDetailPage() {
             <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-cyan-700">Cancelled sessions</h3>
             <div className="mt-3">{renderSessionRows(cancelledSessions)}</div>
           </section>
+        </div>
+      </Card>
+
+      <Card>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-xl font-semibold text-slate-950">Remove trainer</h2>
+            <p className="mt-1 text-sm text-slate-600">
+              {linkedSessions.length
+                ? 'This trainer is linked to session history and cannot be removed. Mark them inactive through Edit Trainer instead.'
+                : 'This trainer has no linked sessions and can be removed.'}
+            </p>
+            {removeError ? <p className="mt-2 text-sm font-semibold text-red-700">{removeError}</p> : null}
+          </div>
+          {confirmingRemove ? (
+            <div className="flex gap-2">
+              <Button type="button" variant="secondary" onClick={() => setConfirmingRemove(false)}>Cancel</Button>
+              <Button type="button" onClick={removeTrainer}>Confirm removal</Button>
+            </div>
+          ) : (
+            <Button type="button" variant="secondary" onClick={() => setConfirmingRemove(true)}>Remove trainer</Button>
+          )}
         </div>
       </Card>
     </div>

@@ -27,6 +27,7 @@ const locationFormUrl = new URL("../legacy-src/pages/admin/LocationFormPage.tsx"
 const trainerFormUrl = new URL("../legacy-src/pages/admin/TrainerFormPage.tsx", import.meta.url);
 const locationRouteUrl = new URL("../app/api/locations/[locationId]/route.ts", import.meta.url);
 const trainerRouteUrl = new URL("../app/api/trainers/[trainerId]/route.ts", import.meta.url);
+const trainerDetailUrl = new URL("../legacy-src/pages/admin/TrainerDetailPage.tsx", import.meta.url);
 
 test("catalogue refresh always reads current server data", async () => {
   const hook = await readFile(catalogHookUrl, "utf8");
@@ -121,12 +122,15 @@ test("location and trainer forms save and refresh live records", async () => {
 });
 
 test("linked locations and trainers are protected from deletion", async () => {
-  const [locationRoute, trainerRoute] = await Promise.all([
+  const [locationRoute, trainerRoute, trainerDetail] = await Promise.all([
     readFile(locationRouteUrl, "utf8"),
     readFile(trainerRouteUrl, "utf8"),
+    readFile(trainerDetailUrl, "utf8"),
   ]);
   assert.match(locationRoute, /courses or sessions are linked/);
   assert.match(locationRoute, /sessions\.locationId/);
   assert.match(trainerRoute, /sessions\.trainerId/);
   assert.match(trainerRoute, /Mark the trainer inactive instead/);
+  assert.match(trainerDetail, /Confirm removal/);
+  assert.match(trainerDetail, /linked to session history and cannot be removed/);
 });
