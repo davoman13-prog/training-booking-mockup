@@ -18,7 +18,7 @@ export default function BookingConfirmationPage() {
         <Badge label="Booking confirmed" variant="success" />
         <h1 className="text-3xl font-semibold text-slate-950">Your course booking is confirmed</h1>
         <p className="mx-auto max-w-xl text-sm text-slate-600">
-          This is a prototype confirmation screen. No real booking has been processed.
+          Your booking has been saved to the live training register.
         </p>
         {course && session ? (
           <div className="mx-auto max-w-3xl rounded-2xl bg-slate-50 p-5 text-left">
