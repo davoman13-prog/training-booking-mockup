@@ -1,0 +1,39 @@
+export interface DelegatePayload {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+  organisation?: string;
+  managerName?: string;
+  managerEmail?: string;
+  accountStatus?: "active" | "inactive" | "anonymised";
+  adminNotes?: string;
+  specialRequirements?: string;
+}
+
+export function validateDelegatePayload(payload: DelegatePayload) {
+  if (!payload.firstName?.trim()) return "First name is required.";
+  if (!payload.lastName?.trim()) return "Last name is required.";
+  if (!payload.email?.trim() || !payload.email.includes("@")) return "A valid email is required.";
+  if (!payload.organisation?.trim()) return "Practice or organisation is required.";
+  if (!payload.managerName?.trim()) return "Practice manager name is required.";
+  if (!payload.managerEmail?.trim() || !payload.managerEmail.includes("@")) return "A valid practice manager email is required.";
+  if (!["active", "inactive", "anonymised"].includes(payload.accountStatus ?? "active")) return "Account status is invalid.";
+  return "";
+}
+
+export function delegateValues(payload: DelegatePayload) {
+  return {
+    firstName: payload.firstName!.trim(),
+    lastName: payload.lastName!.trim(),
+    email: payload.email!.trim().toLowerCase(),
+    phone: payload.phone?.trim() || null,
+    organisation: payload.organisation!.trim(),
+    managerName: payload.managerName!.trim(),
+    managerEmail: payload.managerEmail!.trim().toLowerCase(),
+    accountStatus: payload.accountStatus ?? "active",
+    adminNotes: payload.adminNotes?.trim() ?? "",
+    specialRequirements: payload.specialRequirements?.trim() ?? "",
+    updatedAt: new Date().toISOString(),
+  };
+}

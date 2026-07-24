@@ -1,6 +1,8 @@
 import { getDb } from "../../../db";
 import {
   courses,
+  bookings,
+  delegates,
   locations,
   sessions,
   trainers,
@@ -10,7 +12,10 @@ import {
   locations as seedLocations,
   sessions as seedSessions,
   trainers as seedTrainers,
+  bookings as seedBookings,
+  delegates as seedDelegates,
 } from "../../../legacy-src/data/mockData";
+import { delegateProfiles } from "../../../legacy-src/pages/admin/delegateUtils";
 
 function chunks<T>(items: T[], size: number): T[][] {
   const result: T[][] = [];
@@ -23,8 +28,9 @@ function chunks<T>(items: T[], size: number): T[][] {
 async function seedCatalogIfEmpty() {
   const db = getDb();
   const existing = await db.select({ id: courses.id }).from(courses).limit(1);
-  if (existing.length > 0) return;
+  const catalogEmpty = existing.length === 0;
 
+  if (catalogEmpty) {
   const locationValues = seedLocations.map((location) => ({
       ...location,
       createdAt: new Date().toISOString(),
@@ -78,17 +84,56 @@ async function seedCatalogIfEmpty() {
   for (const batch of chunks(sessionValues, 5)) {
     await db.insert(sessions).values(batch).onConflictDoNothing();
   }
+  }
+
+  const now = new Date().toISOString();
+  const delegateValues = seedDelegates.map((delegate) => {
+    const [firstName, ...lastName] = delegate.name.split(" ");
+    const profile = delegateProfiles[delegate.id];
+    return {
+      id: delegate.id,
+      firstName,
+      lastName: lastName.join(" "),
+      email: delegate.email,
+      phone: profile?.phone ?? null,
+      organisation: delegate.organisation,
+      managerName: delegate.managerName,
+      managerEmail: delegate.managerEmail,
+      accountStatus: profile?.accountStatus ?? "active" as const,
+      adminNotes: profile?.adminNotes ?? "",
+      specialRequirements: delegate.specialRequirements ?? "",
+      createdAt: profile?.registrationDate ?? now,
+      updatedAt: now,
+    };
+  });
+  for (const batch of chunks(delegateValues, 5)) {
+    await db.insert(delegates).values(batch).onConflictDoNothing();
+  }
+
+  const bookingValues = seedBookings.map((booking) => ({
+    ...booking,
+    specialRequirements: booking.specialRequirements ?? null,
+    invoiceId: booking.invoiceId ?? null,
+    certificateId: booking.certificateId ?? null,
+    createdAt: booking.bookingDate,
+    updatedAt: now,
+  }));
+  for (const batch of chunks(bookingValues, 5)) {
+    await db.insert(bookings).values(batch).onConflictDoNothing();
+  }
 }
 
 export async function GET() {
   try {
     await seedCatalogIfEmpty();
     const db = getDb();
-    const [courseRows, locationRows, trainerRows, sessionRows] = await Promise.all([
+    const [courseRows, locationRows, trainerRows, sessionRows, delegateRows, bookingRows] = await Promise.all([
       db.select().from(courses),
       db.select().from(locations),
       db.select().from(trainers),
       db.select().from(sessions),
+      db.select().from(delegates),
+      db.select().from(bookings),
     ]);
 
     return Response.json({
@@ -109,6 +154,15 @@ export async function GET() {
         updatedDate: trainer.updatedAt,
       })),
       sessions: sessionRows,
+      delegates: delegateRows.map((delegate) => ({
+        ...delegate,
+        name: `${delegate.firstName} ${delegate.lastName}`.trim(),
+        registrationDate: delegate.createdAt,
+        bookingIds: bookingRows.filter((booking) => booking.delegateId === delegate.id).map((booking) => booking.id),
+        certificateIds: bookingRows.filter((booking) => booking.delegateId === delegate.id && booking.certificateId).map((booking) => booking.certificateId),
+        invoiceIds: bookingRows.filter((booking) => booking.delegateId === delegate.id && booking.invoiceId).map((booking) => booking.invoiceId),
+      })),
+      bookings: bookingRows,
     });
   } catch (error) {
     console.error("Catalogue load failed.", error);

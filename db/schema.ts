@@ -118,3 +118,39 @@ export const sessions = sqliteTable("sessions", {
   attendeeCount: integer("attendee_count").notNull().default(0),
   ...timestamps,
 });
+
+export const delegates = sqliteTable("delegates", {
+  id: text("id").primaryKey(),
+  firstName: text("first_name").notNull(),
+  lastName: text("last_name").notNull(),
+  email: text("email").notNull().unique(),
+  phone: text("phone"),
+  organisation: text("organisation").notNull(),
+  managerName: text("manager_name").notNull(),
+  managerEmail: text("manager_email").notNull(),
+  accountStatus: text("account_status", {
+    enum: ["active", "inactive", "anonymised"],
+  }).notNull().default("active"),
+  adminNotes: text("admin_notes").notNull().default(""),
+  specialRequirements: text("special_requirements").notNull().default(""),
+  ...timestamps,
+});
+
+export const bookings = sqliteTable("bookings", {
+  id: text("id").primaryKey(),
+  delegateId: text("delegate_id").notNull().references(() => delegates.id),
+  courseId: text("course_id").notNull().references(() => courses.id),
+  sessionId: text("session_id").notNull().references(() => sessions.id),
+  locationId: text("location_id").notNull().references(() => locations.id),
+  bookingDate: text("booking_date").notNull(),
+  status: text("status", {
+    enum: ["confirmed", "pending", "cancelled", "completed"],
+  }).notNull(),
+  paymentRequired: integer("payment_required", { mode: "boolean" }).notNull(),
+  termsAccepted: integer("terms_accepted", { mode: "boolean" }).notNull(),
+  specialRequirements: text("special_requirements"),
+  attendanceMarked: integer("attendance_marked", { mode: "boolean" }).notNull().default(false),
+  invoiceId: text("invoice_id"),
+  certificateId: text("certificate_id"),
+  ...timestamps,
+});

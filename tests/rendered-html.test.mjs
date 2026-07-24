@@ -28,6 +28,12 @@ const trainerFormUrl = new URL("../legacy-src/pages/admin/TrainerFormPage.tsx", 
 const locationRouteUrl = new URL("../app/api/locations/[locationId]/route.ts", import.meta.url);
 const trainerRouteUrl = new URL("../app/api/trainers/[trainerId]/route.ts", import.meta.url);
 const trainerDetailUrl = new URL("../legacy-src/pages/admin/TrainerDetailPage.tsx", import.meta.url);
+const registerUrl = new URL("../legacy-src/pages/delegate/RegisterPage.tsx", import.meta.url);
+const delegateDetailUrl = new URL("../legacy-src/pages/admin/DelegateDetailPage.tsx", import.meta.url);
+const delegateRouteUrl = new URL("../app/api/delegates/[delegateId]/route.ts", import.meta.url);
+const bookingFormUrl = new URL("../legacy-src/pages/delegate/BookingFormPage.tsx", import.meta.url);
+const bookingCreateUrl = new URL("../app/api/bookings/route.ts", import.meta.url);
+const bookingUpdateUrl = new URL("../app/api/bookings/[bookingId]/route.ts", import.meta.url);
 
 test("catalogue refresh always reads current server data", async () => {
   const hook = await readFile(catalogHookUrl, "utf8");
@@ -133,4 +139,30 @@ test("linked locations and trainers are protected from deletion", async () => {
   assert.match(trainerRoute, /Mark the trainer inactive instead/);
   assert.match(trainerDetail, /Confirm removal/);
   assert.match(trainerDetail, /linked to session history and cannot be removed/);
+});
+
+test("delegate registration and admin edits use the live API", async () => {
+  const [registration, detail, route] = await Promise.all([
+    readFile(registerUrl, "utf8"),
+    readFile(delegateDetailUrl, "utf8"),
+    readFile(delegateRouteUrl, "utf8"),
+  ]);
+  assert.match(registration, /fetch\('\/api\/delegates'/);
+  assert.match(detail, /fetch\(`\/api\/delegates\/\$\{delegate\.id\}`/);
+  assert.match(detail, /await refresh\(\)/);
+  assert.match(route, /DELEGATE_HAS_BOOKINGS/);
+});
+
+test("booking creation and cancellation keep session capacity in sync", async () => {
+  const [form, createRoute, updateRoute] = await Promise.all([
+    readFile(bookingFormUrl, "utf8"),
+    readFile(bookingCreateUrl, "utf8"),
+    readFile(bookingUpdateUrl, "utf8"),
+  ]);
+  assert.match(form, /fetch\('\/api\/bookings'/);
+  assert.match(createRoute, /DUPLICATE_BOOKING/);
+  assert.match(createRoute, /available_seats = available_seats - 1/);
+  assert.match(updateRoute, /attendee_count = MAX\(0, attendee_count - 1\)/);
+  assert.match(updateRoute, /available_seats = available_seats \+ 1/);
+  assert.match(updateRoute, /session is unavailable or full/);
 });
