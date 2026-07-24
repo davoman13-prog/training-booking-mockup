@@ -31,8 +31,8 @@ function App() {
     const controller = new AbortController()
     void fetch('/api/auth/session', { cache: 'no-store', signal: controller.signal })
       .then(async (response) => {
-        const result = await response.json() as { registered?: boolean; user?: MockUser }
-        if (response.ok && result.registered && result.user) setCurrentUser(result.user)
+        const result = await response.json() as { authenticated?: boolean; user?: MockUser }
+        if (response.ok && result.authenticated && result.user) setCurrentUser(result.user)
       })
       .catch(() => undefined)
       .finally(() => setAuthLoading(false))
