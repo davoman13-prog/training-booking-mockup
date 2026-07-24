@@ -75,22 +75,33 @@ export default function SessionFormPage() {
     }
   })
   useEffect(() => {
-    if (!isLive || !session) return
+    if (!isLive) return
     // Live data replaces the prototype seed once the catalogue request completes.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setFormState({
-      courseId: session.courseId,
-      locationId: session.locationId,
-      trainerId: session.trainerId ?? '',
-      startDate: session.startDate,
-      endDate: session.endDate,
-      startTime: session.startTime,
-      endTime: session.endTime,
-      capacity: (session.attendeeCount + session.availableSeats).toString(),
-      attendeeCount: session.attendeeCount.toString(),
-      status: session.status,
-    })
-  }, [isLive, session])
+    setFormState(session ? {
+        courseId: session.courseId,
+        locationId: session.locationId,
+        trainerId: session.trainerId ?? '',
+        startDate: session.startDate,
+        endDate: session.endDate,
+        startTime: session.startTime,
+        endTime: session.endTime,
+        capacity: (session.attendeeCount + session.availableSeats).toString(),
+        attendeeCount: session.attendeeCount.toString(),
+        status: session.status,
+      } : {
+        courseId: preselectedCourseId ?? courses[0]?.id ?? '',
+        locationId: locations[0]?.id ?? '',
+        trainerId: returnedTrainerId ?? '',
+        startDate: '',
+        endDate: '',
+        startTime: '',
+        endTime: '',
+        capacity: '',
+        attendeeCount: '0',
+        status: 'scheduled',
+      })
+  }, [courses, isLive, locations, preselectedCourseId, returnedTrainerId, session])
   const course = courses.find((item) => item.id === formState.courseId)
   const sessionBookings = session ? bookings.filter((booking) => booking.sessionId === session.id) : []
   const spacesRemaining = session?.availableSeats ?? 0
