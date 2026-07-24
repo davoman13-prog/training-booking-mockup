@@ -1,18 +1,19 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import AppRoutes from './routes/AppRoutes'
 import Header from './components/layout/Header'
 import Sidebar from './components/layout/Sidebar'
 import { MockUser } from './types'
 
-const storageKey = 'kalu-training-mock-user'
+const storageKey = 'kalu-training-admin-demo'
 
 function getStoredUser() {
   const raw = window.localStorage.getItem(storageKey)
   if (!raw) return null
 
   try {
-    return JSON.parse(raw) as MockUser
+    const user = JSON.parse(raw) as MockUser
+    return user.role === 'admin' ? user : null
   } catch {
     window.localStorage.removeItem(storageKey)
     return null
@@ -21,6 +22,22 @@ function getStoredUser() {
 
 function App() {
   const [currentUser, setCurrentUser] = useState<MockUser | null>(getStoredUser)
+  const [authLoading, setAuthLoading] = useState(!getStoredUser())
+
+  useEffect(() => {
+    if (currentUser?.role === 'admin') {
+      return
+    }
+    const controller = new AbortController()
+    void fetch('/api/auth/session', { cache: 'no-store', signal: controller.signal })
+      .then(async (response) => {
+        const result = await response.json() as { registered?: boolean; user?: MockUser }
+        if (response.ok && result.registered && result.user) setCurrentUser(result.user)
+      })
+      .catch(() => undefined)
+      .finally(() => setAuthLoading(false))
+    return () => controller.abort()
+  }, [currentUser?.role])
 
   const navItems = useMemo(
     () =>
@@ -50,13 +67,19 @@ function App() {
 
   function handleLogin(user: MockUser) {
     setCurrentUser(user)
-    window.localStorage.setItem(storageKey, JSON.stringify(user))
+    if (user.role === 'admin') window.localStorage.setItem(storageKey, JSON.stringify(user))
   }
 
   function handleLogout() {
+    if (currentUser?.role === 'delegate') {
+      window.location.assign('/signout-with-chatgpt?return_to=/')
+      return
+    }
     setCurrentUser(null)
     window.localStorage.removeItem(storageKey)
   }
+
+  if (authLoading) return <div className="min-h-screen bg-slate-50 p-8 text-sm font-semibold text-slate-600">Checking your secure Kalu session…</div>
 
   return (
     <div className="min-h-screen bg-slate-50">

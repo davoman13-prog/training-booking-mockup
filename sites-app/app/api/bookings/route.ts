@@ -1,7 +1,6 @@
 import { env } from "cloudflare:workers";
 
 interface BookingPayload {
-  delegateId?: string;
   courseId?: string;
   sessionId?: string;
   specialRequirements?: string;
@@ -11,10 +10,16 @@ interface BookingPayload {
 export async function POST(request: Request) {
   try {
     const payload = await request.json() as BookingPayload;
-    if (!payload.delegateId || !payload.courseId || !payload.sessionId) {
-      return Response.json({ code: "INVALID_BOOKING", message: "Delegate, course and session are required." }, { status: 400 });
+    if (!payload.courseId || !payload.sessionId) {
+      return Response.json({ code: "INVALID_BOOKING", message: "Course and session are required." }, { status: 400 });
     }
     if (!payload.termsAccepted) return Response.json({ code: "TERMS_REQUIRED", message: "The booking terms must be accepted." }, { status: 400 });
+    const authenticatedEmail = request.headers.get("oai-authenticated-user-email")?.trim().toLowerCase();
+    if (!authenticatedEmail) return Response.json({ code: "NOT_AUTHENTICATED", message: "Sign in before creating a booking." }, { status: 401 });
+    const delegate = await env.DB.prepare("SELECT id, account_status FROM delegates WHERE email = ?").bind(authenticatedEmail).first<{ id: string; account_status: string }>();
+    if (!delegate) return Response.json({ code: "DELEGATE_NOT_FOUND", message: "Complete delegate registration before creating a booking." }, { status: 403 });
+    if (delegate.account_status !== "active") return Response.json({ code: "DELEGATE_INACTIVE", message: "Only active delegates can be booked." }, { status: 409 });
+    const delegateId = delegate.id;
 
     const session = await env.DB.prepare(
       `SELECT s.id, s.course_id, s.location_id, s.status, s.available_seats,
@@ -28,12 +33,8 @@ export async function POST(request: Request) {
 
     const duplicate = await env.DB.prepare(
       "SELECT id FROM bookings WHERE delegate_id = ? AND session_id = ? AND status <> 'cancelled'",
-    ).bind(payload.delegateId, payload.sessionId).first();
+    ).bind(delegateId, payload.sessionId).first();
     if (duplicate) return Response.json({ code: "DUPLICATE_BOOKING", message: "This delegate already has an active booking for the session." }, { status: 409 });
-
-    const delegate = await env.DB.prepare("SELECT id, account_status FROM delegates WHERE id = ?").bind(payload.delegateId).first<{ id: string; account_status: string }>();
-    if (!delegate) return Response.json({ code: "DELEGATE_NOT_FOUND", message: "The selected delegate was not found." }, { status: 404 });
-    if (delegate.account_status !== "active") return Response.json({ code: "DELEGATE_INACTIVE", message: "Only active delegates can be booked." }, { status: 409 });
 
     const id = `booking-${crypto.randomUUID()}`;
     const now = new Date().toISOString();
@@ -43,7 +44,7 @@ export async function POST(request: Request) {
         (id, delegate_id, course_id, session_id, location_id, booking_date, status, payment_required, terms_accepted, special_requirements, attendance_marked, created_at, updated_at)
         SELECT ?, ?, ?, ?, ?, ?, 'confirmed', ?, 1, ?, 0, ?, ?
         FROM sessions WHERE id = ? AND status = 'scheduled' AND available_seats > 0`,
-      ).bind(id, payload.delegateId, payload.courseId, payload.sessionId, session.location_id, now.slice(0, 10), session.funding_type === "unfunded" ? 1 : 0, payload.specialRequirements?.trim() || null, now, now, payload.sessionId),
+      ).bind(id, delegateId, payload.courseId, payload.sessionId, session.location_id, now.slice(0, 10), session.funding_type === "unfunded" ? 1 : 0, payload.specialRequirements?.trim() || null, now, now, payload.sessionId),
       env.DB.prepare("UPDATE sessions SET attendee_count = attendee_count + 1, available_seats = available_seats - 1, updated_at = ? WHERE id = ? AND available_seats > 0 AND EXISTS (SELECT 1 FROM bookings WHERE id = ?)").bind(now, payload.sessionId, id),
     ]);
     const booking = await env.DB.prepare("SELECT * FROM bookings WHERE id = ?").bind(id).first();

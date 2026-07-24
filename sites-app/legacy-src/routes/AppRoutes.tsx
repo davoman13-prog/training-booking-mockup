@@ -53,14 +53,14 @@ export default function AppRoutes({ currentUser, onLogin }: AppRoutesProps) {
         </>
       ) : currentUser.role === 'delegate' ? (
         <>
-          <Route path="delegate/dashboard" element={<DelegateDashboardPage />} />
+          <Route path="delegate/dashboard" element={<DelegateDashboardPage currentUser={currentUser} />} />
           <Route path="delegate/browse" element={<BrowseCoursesPage />} />
           <Route path="delegate/courses/:courseId" element={<CourseDetailPage />} />
-          <Route path="delegate/book/:courseId/:sessionId" element={<BookingFormPage />} />
-          <Route path="delegate/book/:courseId" element={<BookingFormPage />} />
+          <Route path="delegate/book/:courseId/:sessionId" element={<BookingFormPage currentUser={currentUser} />} />
+          <Route path="delegate/book/:courseId" element={<BookingFormPage currentUser={currentUser} />} />
           <Route path="delegate/confirmation" element={<BookingConfirmationPage />} />
-          <Route path="delegate/bookings/:bookingId" element={<TrainingDetailPage />} />
-          <Route path="delegate/bookings" element={<MyBookingsPage />} />
+          <Route path="delegate/bookings/:bookingId" element={<TrainingDetailPage currentUser={currentUser} />} />
+          <Route path="delegate/bookings" element={<MyBookingsPage currentUser={currentUser} />} />
           <Route path="delegate/certificates/:certificateId" element={<CertificateDetailPage />} />
           <Route path="delegate/certificates" element={<CertificatesPage />} />
           <Route path="delegate/invoices/:invoiceId" element={<InvoiceDetailPage />} />

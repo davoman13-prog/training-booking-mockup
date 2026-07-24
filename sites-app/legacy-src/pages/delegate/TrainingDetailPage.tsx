@@ -1,10 +1,12 @@
 import { Link, useParams } from 'react-router-dom'
-import { bookings, certificates, courses, delegates, invoices, locations, sessions } from '../../data/mockData'
+import { certificates, invoices } from '../../data/mockData'
 import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
 import { formatCurrency, formatDate } from '../../utils/formatters'
 import { trainerNameById } from '../../utils/trainerUtils'
+import useCatalog from '../../hooks/useCatalog'
+import { MockUser } from '../../types'
 
 function statusVariant(status?: string) {
   if (status === 'confirmed' || status === 'completed' || status === 'available' || status === 'paid' || status === 'not_required') return 'success'
@@ -12,10 +14,12 @@ function statusVariant(status?: string) {
   return 'warning'
 }
 
-export default function TrainingDetailPage() {
+export default function TrainingDetailPage({ currentUser }: { currentUser: MockUser }) {
   const { bookingId } = useParams()
-  const booking = bookings.find((item) => item.id === bookingId)
+  const { bookings, courses, delegates, locations, sessions, isLoading } = useCatalog()
+  const booking = bookings.find((item) => item.id === bookingId && item.delegateId === currentUser.id)
 
+  if (isLoading) return <p className="rounded-2xl border border-slate-200 bg-white p-8 text-slate-700">Loading your live booking...</p>
   if (!booking) {
     return <p className="rounded-2xl border border-slate-200 bg-white p-8 text-slate-700">Booking not found.</p>
   }
@@ -66,7 +70,7 @@ export default function TrainingDetailPage() {
             <div><dt className="font-semibold text-slate-900">Reference</dt><dd className="text-slate-600">{booking.id}</dd></div>
             <div><dt className="font-semibold text-slate-900">Booking status</dt><dd><Badge label={booking.status} variant={statusVariant(booking.status)} /></dd></div>
             <div><dt className="font-semibold text-slate-900">Attendance</dt><dd><Badge label={booking.attendanceMarked ? 'attended' : 'not marked'} variant={booking.attendanceMarked ? 'success' : 'warning'} /></dd></div>
-            <div><dt className="font-semibold text-slate-900">Terms summary</dt><dd className="text-slate-600">{booking.termsAccepted ? 'Terms and conditions accepted for this mock booking.' : 'Terms acceptance not recorded.'}</dd></div>
+            <div><dt className="font-semibold text-slate-900">Terms summary</dt><dd className="text-slate-600">{booking.termsAccepted ? 'Terms and conditions accepted for this booking.' : 'Terms acceptance not recorded.'}</dd></div>
             <div><dt className="font-semibold text-slate-900">Special requirements</dt><dd className="text-slate-600">{booking.specialRequirements ?? delegate?.specialRequirements ?? 'None recorded'}</dd></div>
           </dl>
         </Card>

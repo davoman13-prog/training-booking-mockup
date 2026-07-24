@@ -1,4 +1,4 @@
-import { FormEvent, useState } from 'react'
+import { FormEvent, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import Card from '../../components/ui/Card'
 import Input from '../../components/ui/Input'
@@ -22,6 +22,22 @@ export default function RegisterPage({ onLogin }: RegisterPageProps) {
   const [managerEmail, setManagerEmail] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [checkingIdentity, setCheckingIdentity] = useState(true)
+
+  useEffect(() => {
+    void fetch('/api/auth/session', { cache: 'no-store' })
+      .then((response) => response.json())
+      .then((result: { email?: string; registered?: boolean; user?: MockUser }) => {
+        if (result.registered && result.user) {
+          onLogin(result.user)
+          navigate('/delegate/dashboard')
+          return
+        }
+        setEmail(result.email ?? '')
+      })
+      .catch(() => setError('Your secure sign-in could not be verified.'))
+      .finally(() => setCheckingIdentity(false))
+  }, [navigate, onLogin])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -33,12 +49,12 @@ export default function RegisterPage({ onLogin }: RegisterPageProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ firstName, lastName, email, phone, organisation, managerName, managerEmail, accountStatus: 'active' }),
       })
-      const result = await response.json() as { delegate?: { id: string }; message?: string }
+      const result = await response.json() as { delegate?: { id: string; firstName: string; lastName: string; email: string }; message?: string }
       if (!response.ok) throw new Error(result.message ?? 'The delegate account could not be created.')
     const mockUser: MockUser = {
       id: result.delegate!.id,
-      name: `${firstName} ${lastName}`.trim() || 'New Delegate',
-      email: email || 'new.delegate@kalu.test',
+      name: `${result.delegate!.firstName} ${result.delegate!.lastName}`.trim(),
+      email: result.delegate!.email,
       role: 'delegate',
     }
 
@@ -57,7 +73,7 @@ export default function RegisterPage({ onLogin }: RegisterPageProps) {
       <div>
         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-cyan-700">Kalu Training registration</p>
         <h1 className="mt-2 text-3xl font-semibold text-slate-900">Create a delegate account</h1>
-        <p className="mt-3 text-sm text-slate-600">Your delegate profile is stored in the live training register.</p>
+        <p className="mt-3 text-sm text-slate-600">Create the delegate profile linked to your verified sign-in. Your profile is stored in the live training register.</p>
       </div>
       <Card>
         {submitted ? (
@@ -82,7 +98,7 @@ export default function RegisterPage({ onLogin }: RegisterPageProps) {
               </div>
               <div>
                 <label className="text-sm font-semibold text-slate-900">Email</label>
-                <Input value={email} onChange={(event) => setEmail(event.target.value)} type="email" placeholder="alice@example.com" required />
+                <Input value={checkingIdentity ? 'Checking secure identity…' : email} type="email" placeholder="alice@example.com" readOnly required />
               </div>
               <div>
                 <label className="text-sm font-semibold text-slate-900">Phone</label>
@@ -100,14 +116,6 @@ export default function RegisterPage({ onLogin }: RegisterPageProps) {
                 <label className="text-sm font-semibold text-slate-900">Practice manager email</label>
                 <Input value={managerEmail} onChange={(event) => setManagerEmail(event.target.value)} type="email" placeholder="manager@example.com" required />
               </div>
-              <div>
-                <label className="text-sm font-semibold text-slate-900">Password</label>
-                <Input type="password" placeholder="Create a password" required />
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-slate-900">Confirm password</label>
-                <Input type="password" placeholder="Confirm password" required />
-              </div>
             </div>
             <label className="flex items-start gap-3 rounded-2xl bg-slate-50 p-4 text-sm text-slate-800">
               <input
@@ -120,7 +128,7 @@ export default function RegisterPage({ onLogin }: RegisterPageProps) {
               <span>I accept the terms and conditions for delegate registration.</span>
             </label>
             <div className="flex justify-end">
-              <Button type="submit" disabled={!termsAccepted || submitting}>{submitting ? 'Registering...' : 'Register and continue'}</Button>
+              <Button type="submit" disabled={!termsAccepted || submitting || checkingIdentity || !email}>{submitting ? 'Registering...' : 'Register and continue'}</Button>
             </div>
           </form>
         )}

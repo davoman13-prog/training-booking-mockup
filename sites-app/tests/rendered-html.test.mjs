@@ -34,6 +34,9 @@ const delegateRouteUrl = new URL("../app/api/delegates/[delegateId]/route.ts", i
 const bookingFormUrl = new URL("../legacy-src/pages/delegate/BookingFormPage.tsx", import.meta.url);
 const bookingCreateUrl = new URL("../app/api/bookings/route.ts", import.meta.url);
 const bookingUpdateUrl = new URL("../app/api/bookings/[bookingId]/route.ts", import.meta.url);
+const authSessionUrl = new URL("../app/api/auth/session/route.ts", import.meta.url);
+const appUrl = new URL("../legacy-src/App.tsx", import.meta.url);
+const loginUrl = new URL("../legacy-src/pages/delegate/LoginPage.tsx", import.meta.url);
 
 test("catalogue refresh always reads current server data", async () => {
   const hook = await readFile(catalogHookUrl, "utf8");
@@ -165,4 +168,23 @@ test("booking creation and cancellation keep session capacity in sync", async ()
   assert.match(updateRoute, /attendee_count = MAX\(0, attendee_count - 1\)/);
   assert.match(updateRoute, /available_seats = available_seats \+ 1/);
   assert.match(updateRoute, /session is unavailable or full/);
+});
+
+test("delegate identity comes from the secure hosting session", async () => {
+  const [sessionRoute, app, login, registration, bookingRoute] = await Promise.all([
+    readFile(authSessionUrl, "utf8"),
+    readFile(appUrl, "utf8"),
+    readFile(loginUrl, "utf8"),
+    readFile(registerUrl, "utf8"),
+    readFile(bookingCreateUrl, "utf8"),
+  ]);
+  assert.match(sessionRoute, /oai-authenticated-user-email/);
+  assert.match(sessionRoute, /registered: false, email/);
+  assert.match(sessionRoute, /role: "delegate"/);
+  assert.match(app, /fetch\('\/api\/auth\/session'/);
+  assert.doesNotMatch(app, /kalu-training-mock-user/);
+  assert.match(login, /verified ChatGPT sign-in/);
+  assert.match(registration, /readOnly required/);
+  assert.match(bookingRoute, /authenticatedEmail/);
+  assert.doesNotMatch(bookingRoute, /payload\.delegateId/);
 });
