@@ -1,23 +1,24 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { courses, locations, sessions } from '../../data/mockData'
 import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
 import Input from '../../components/ui/Input'
 import Select from '../../components/ui/Select'
 import { formatCurrency, formatDate } from '../../utils/formatters'
+import useCatalog from '../../hooks/useCatalog'
 
 const anyValue = 'any'
 
 export default function BrowseCoursesPage() {
+  const { courses, locations, sessions, isLive } = useCatalog()
   const [searchTerm, setSearchTerm] = useState('')
   const [category, setCategory] = useState(anyValue)
   const [funding, setFunding] = useState(anyValue)
   const [locationId, setLocationId] = useState(anyValue)
   const [availability, setAvailability] = useState(anyValue)
 
-  const categories = useMemo(() => Array.from(new Set(courses.map((course) => course.category))).sort(), [])
+  const categories = useMemo(() => Array.from(new Set(courses.map((course) => course.category))).sort(), [courses])
   const activeFilterCount = [searchTerm.trim(), category !== anyValue, funding !== anyValue, locationId !== anyValue, availability !== anyValue].filter(Boolean).length
 
   const filteredCourses = useMemo(() => {
@@ -54,7 +55,12 @@ export default function BrowseCoursesPage() {
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-cyan-700">Course browsing</p>
           <h1 className="mt-2 text-3xl font-semibold text-slate-950">Browse available training</h1>
-          <p className="mt-2 text-sm text-slate-600">Search across {courses.length} static mock courses and choose a real session to book.</p>
+          <p className="mt-2 text-sm text-slate-600">
+            Search across {courses.length} courses and choose a session to book.
+            <span className={`ml-2 font-semibold ${isLive ? 'text-emerald-700' : 'text-amber-700'}`}>
+              {isLive ? 'Live catalogue' : 'Loading catalogue'}
+            </span>
+          </p>
         </div>
       </div>
 

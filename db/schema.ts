@@ -43,3 +43,78 @@ export const auditLog = sqliteTable("audit_log", {
   details: text("details"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
+
+export const locations = sqliteTable("locations", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  address: text("address").notNull(),
+  city: text("city").notNull(),
+  postcode: text("postcode").notNull(),
+  roomName: text("room_name").notNull(),
+  capacity: integer("capacity").notNull(),
+  contactName: text("contact_name").notNull(),
+  contactEmail: text("contact_email").notNull(),
+  contactPhone: text("contact_phone").notNull(),
+  isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
+  notes: text("notes"),
+  ...timestamps,
+});
+
+export const trainers = sqliteTable("trainers", {
+  id: text("id").primaryKey(),
+  firstName: text("first_name").notNull(),
+  lastName: text("last_name").notNull(),
+  email: text("email").notNull().unique(),
+  phone: text("phone").notNull(),
+  alternativePhone: text("alternative_phone"),
+  organisation: text("organisation").notNull(),
+  addressLine1: text("address_line_1").notNull(),
+  addressLine2: text("address_line_2"),
+  townCity: text("town_city").notNull(),
+  county: text("county").notNull(),
+  postcode: text("postcode").notNull(),
+  notes: text("notes").notNull().default(""),
+  status: text("status", { enum: ["active", "inactive"] }).notNull(),
+  approvedCourseIds: text("approved_course_ids").notNull().default("[]"),
+  ...timestamps,
+});
+
+export const courses = sqliteTable("courses", {
+  id: text("id").primaryKey(),
+  title: text("title").notNull(),
+  category: text("category").notNull(),
+  description: text("description").notNull(),
+  fundingType: text("funding_type", { enum: ["funded", "unfunded"] }).notNull(),
+  status: text("status", {
+    enum: ["open", "awaiting_minimum", "at_risk", "cancelled", "completed"],
+  }).notNull(),
+  pricePence: integer("price_pence"),
+  minimumAttendees: integer("minimum_attendees"),
+  invoiceTriggerDate: text("invoice_trigger_date"),
+  cancellationCutoffDate: text("cancellation_cutoff_date"),
+  locationId: text("location_id").notNull().references(() => locations.id),
+  duration: text("duration").notNull(),
+  tags: text("tags").notNull().default("[]"),
+  isFeatured: integer("is_featured", { mode: "boolean" }).notNull().default(false),
+  capacity: integer("capacity").notNull(),
+  attendeeCount: integer("attendee_count").notNull().default(0),
+  outcomes: text("outcomes").notNull().default("[]"),
+  ...timestamps,
+});
+
+export const sessions = sqliteTable("sessions", {
+  id: text("id").primaryKey(),
+  courseId: text("course_id").notNull().references(() => courses.id),
+  locationId: text("location_id").notNull().references(() => locations.id),
+  trainerId: text("trainer_id").references(() => trainers.id),
+  startDate: text("start_date").notNull(),
+  endDate: text("end_date").notNull(),
+  startTime: text("start_time").notNull(),
+  endTime: text("end_time").notNull(),
+  status: text("status", {
+    enum: ["scheduled", "completed", "cancelled", "on_hold"],
+  }).notNull(),
+  availableSeats: integer("available_seats").notNull(),
+  attendeeCount: integer("attendee_count").notNull().default(0),
+  ...timestamps,
+});
