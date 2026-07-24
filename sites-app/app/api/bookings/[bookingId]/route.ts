@@ -1,8 +1,10 @@
 import { env } from "cloudflare:workers";
+import { requireAdmin } from "../../auth/auth";
 
 interface RouteContext { params: Promise<{ bookingId: string }> }
 
 export async function PUT(request: Request, context: RouteContext) {
+  const denied = await requireAdmin(request); if (denied) return denied;
   try {
     const { bookingId } = await context.params;
     const payload = await request.json() as { status?: "confirmed" | "pending" | "cancelled" | "completed"; specialRequirements?: string };
@@ -32,7 +34,8 @@ export async function PUT(request: Request, context: RouteContext) {
   }
 }
 
-export async function DELETE(_request: Request, context: RouteContext) {
+export async function DELETE(request: Request, context: RouteContext) {
+  const denied = await requireAdmin(request); if (denied) return denied;
   try {
     const { bookingId } = await context.params;
     const booking = await env.DB.prepare("SELECT id, session_id, status FROM bookings WHERE id = ?").bind(bookingId).first<{ id: string; session_id: string; status: string }>();

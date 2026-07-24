@@ -1,8 +1,10 @@
 import { getDb } from "../../../db";
 import { courses } from "../../../db/schema";
 import { CoursePayload, courseValues, validateCoursePayload } from "./coursePayload";
+import { requireAdmin } from "../auth/auth";
 
 export async function POST(request: Request) {
+  const denied = await requireAdmin(request); if (denied) return denied;
   try {
     const payload = (await request.json()) as CoursePayload;
     const validationError = validateCoursePayload(payload);

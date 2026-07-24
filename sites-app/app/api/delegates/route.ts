@@ -1,8 +1,10 @@
 import { getDb } from "../../../db";
 import { delegates } from "../../../db/schema";
 import { DelegatePayload, delegateValues, validateDelegatePayload } from "./delegatePayload";
+import { requireAdmin } from "../auth/auth";
 
 export async function POST(request: Request) {
+  const denied = await requireAdmin(request); if (denied) return denied;
   try {
     const payload = await request.json() as DelegatePayload;
     const error = validateDelegatePayload(payload);

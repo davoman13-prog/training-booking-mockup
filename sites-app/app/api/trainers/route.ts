@@ -1,8 +1,10 @@
 import { getDb } from "../../../db";
 import { trainers } from "../../../db/schema";
 import { TrainerPayload, trainerValues, validateTrainerPayload } from "./trainerPayload";
+import { requireAdmin } from "../auth/auth";
 
 export async function POST(request: Request) {
+  const denied = await requireAdmin(request); if (denied) return denied;
   try {
     const payload = (await request.json()) as TrainerPayload;
     const validationError = validateTrainerPayload(payload);

@@ -2,10 +2,12 @@ import { eq } from "drizzle-orm";
 import { getDb } from "../../../../db";
 import { sessions, trainers } from "../../../../db/schema";
 import { TrainerPayload, trainerValues, validateTrainerPayload } from "../trainerPayload";
+import { requireAdmin } from "../../auth/auth";
 
 interface RouteContext { params: Promise<{ trainerId: string }> }
 
 export async function PUT(request: Request, context: RouteContext) {
+  const denied = await requireAdmin(request); if (denied) return denied;
   try {
     const { trainerId } = await context.params;
     const payload = (await request.json()) as TrainerPayload;
@@ -19,7 +21,8 @@ export async function PUT(request: Request, context: RouteContext) {
   }
 }
 
-export async function DELETE(_request: Request, context: RouteContext) {
+export async function DELETE(request: Request, context: RouteContext) {
+  const denied = await requireAdmin(request); if (denied) return denied;
   try {
     const { trainerId } = await context.params;
     const linked = await getDb().select({ id: sessions.id }).from(sessions)

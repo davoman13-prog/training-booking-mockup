@@ -2,10 +2,12 @@ import { eq } from "drizzle-orm";
 import { getDb } from "../../../../db";
 import { bookings, delegateAuthAccounts, delegateAuthSessions, delegates } from "../../../../db/schema";
 import { DelegatePayload, delegateValues, validateDelegatePayload } from "../delegatePayload";
+import { requireAdmin } from "../../auth/auth";
 
 interface RouteContext { params: Promise<{ delegateId: string }> }
 
 export async function PUT(request: Request, context: RouteContext) {
+  const denied = await requireAdmin(request); if (denied) return denied;
   try {
     const { delegateId } = await context.params;
     const payload = await request.json() as DelegatePayload;
@@ -20,7 +22,8 @@ export async function PUT(request: Request, context: RouteContext) {
   }
 }
 
-export async function DELETE(_request: Request, context: RouteContext) {
+export async function DELETE(request: Request, context: RouteContext) {
+  const denied = await requireAdmin(request); if (denied) return denied;
   try {
     const { delegateId } = await context.params;
     const [linkedBooking] = await getDb().select({ id: bookings.id }).from(bookings)

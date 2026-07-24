@@ -5,29 +5,11 @@ import Header from './components/layout/Header'
 import Sidebar from './components/layout/Sidebar'
 import { MockUser } from './types'
 
-const storageKey = 'kalu-training-admin-demo'
-
-function getStoredUser() {
-  const raw = window.localStorage.getItem(storageKey)
-  if (!raw) return null
-
-  try {
-    const user = JSON.parse(raw) as MockUser
-    return user.role === 'admin' ? user : null
-  } catch {
-    window.localStorage.removeItem(storageKey)
-    return null
-  }
-}
-
 function App() {
-  const [currentUser, setCurrentUser] = useState<MockUser | null>(getStoredUser)
-  const [authLoading, setAuthLoading] = useState(!getStoredUser())
+  const [currentUser, setCurrentUser] = useState<MockUser | null>(null)
+  const [authLoading, setAuthLoading] = useState(true)
 
   useEffect(() => {
-    if (currentUser?.role === 'admin') {
-      return
-    }
     const controller = new AbortController()
     void fetch('/api/auth/session', { cache: 'no-store', signal: controller.signal })
       .then(async (response) => {
@@ -37,7 +19,7 @@ function App() {
       .catch(() => undefined)
       .finally(() => setAuthLoading(false))
     return () => controller.abort()
-  }, [currentUser?.role])
+  }, [])
 
   const navItems = useMemo(
     () =>
@@ -67,13 +49,11 @@ function App() {
 
   function handleLogin(user: MockUser) {
     setCurrentUser(user)
-    if (user.role === 'admin') window.localStorage.setItem(storageKey, JSON.stringify(user))
   }
 
   async function handleLogout() {
-    if (currentUser?.role === 'delegate') await fetch('/api/auth/logout', { method: 'POST' }).catch(() => undefined)
+    await fetch('/api/auth/logout', { method: 'POST' }).catch(() => undefined)
     setCurrentUser(null)
-    window.localStorage.removeItem(storageKey)
     window.location.hash = '#/login'
   }
 
