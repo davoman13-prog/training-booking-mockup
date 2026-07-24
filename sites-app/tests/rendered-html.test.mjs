@@ -72,6 +72,9 @@ test("session form saves to the live API and reads the record back", async () =>
   assert.match(form, /Session saved to the live catalogue\./);
   assert.match(form, /name="availableSeats"[\s\S]*disabled/);
   assert.match(form, /Math\.max\(Number\(formState\.capacity/);
+  assert.match(form, /status: 'scheduled'/);
+  assert.match(form, /attendeeCount: '0'/);
+  assert.match(form, /startDate: ''/);
 });
 
 test("session API rejects inconsistent dates and capacity", async () => {
