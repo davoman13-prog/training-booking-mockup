@@ -34,6 +34,10 @@ const delegateRouteUrl = new URL("../app/api/delegates/[delegateId]/route.ts", i
 const bookingFormUrl = new URL("../legacy-src/pages/delegate/BookingFormPage.tsx", import.meta.url);
 const bookingCreateUrl = new URL("../app/api/bookings/route.ts", import.meta.url);
 const bookingUpdateUrl = new URL("../app/api/bookings/[bookingId]/route.ts", import.meta.url);
+const bookingCancelUrl = new URL("../app/api/bookings/[bookingId]/cancel/route.ts", import.meta.url);
+const courseDetailUrl = new URL("../legacy-src/pages/delegate/CourseDetailPage.tsx", import.meta.url);
+const bookingConfirmationUrl = new URL("../legacy-src/pages/delegate/BookingConfirmationPage.tsx", import.meta.url);
+const trainingDetailUrl = new URL("../legacy-src/pages/delegate/TrainingDetailPage.tsx", import.meta.url);
 const authSessionUrl = new URL("../app/api/auth/session/route.ts", import.meta.url);
 const authCoreUrl = new URL("../app/api/auth/auth.ts", import.meta.url);
 const authLoginUrl = new URL("../app/api/auth/login/route.ts", import.meta.url);
@@ -162,10 +166,14 @@ test("delegate registration and admin edits use live APIs", async () => {
 });
 
 test("booking creation and cancellation keep session capacity in sync", async () => {
-  const [form, createRoute, updateRoute] = await Promise.all([
+  const [form, createRoute, updateRoute, cancelRoute, courseDetail, confirmation, trainingDetail] = await Promise.all([
     readFile(bookingFormUrl, "utf8"),
     readFile(bookingCreateUrl, "utf8"),
     readFile(bookingUpdateUrl, "utf8"),
+    readFile(bookingCancelUrl, "utf8"),
+    readFile(courseDetailUrl, "utf8"),
+    readFile(bookingConfirmationUrl, "utf8"),
+    readFile(trainingDetailUrl, "utf8"),
   ]);
   assert.match(form, /fetch\('\/api\/bookings'/);
   assert.match(createRoute, /DUPLICATE_BOOKING/);
@@ -173,6 +181,13 @@ test("booking creation and cancellation keep session capacity in sync", async ()
   assert.match(updateRoute, /attendee_count = MAX\(0, attendee_count - 1\)/);
   assert.match(updateRoute, /available_seats = available_seats \+ 1/);
   assert.match(updateRoute, /session is unavailable or full/);
+  assert.match(cancelRoute, /currentDelegate\(request\)/);
+  assert.match(cancelRoute, /booking\.delegate_id !== delegate\.id/);
+  assert.match(cancelRoute, /available_seats = available_seats \+ 1/);
+  assert.doesNotMatch(courseDetail, /data\/mockData/);
+  assert.doesNotMatch(confirmation, /data\/mockData/);
+  assert.match(confirmation, /bookingId/);
+  assert.match(trainingDetail, /\/cancel/);
 });
 
 test("delegate accounts use hashed passwords and secure server sessions", async () => {

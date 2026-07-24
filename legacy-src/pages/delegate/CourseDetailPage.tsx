@@ -1,17 +1,18 @@
 import { useMemo } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { courses, locations, sessions } from '../../data/mockData'
 import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
 import { formatCurrency, formatDate } from '../../utils/formatters'
 import { canBookSession, delegateSessionAvailabilityMessage } from '../../utils/sessionRules'
-import { trainerNameById } from '../../utils/trainerUtils'
+import useCatalog from '../../hooks/useCatalog'
 
 export default function CourseDetailPage() {
   const { courseId } = useParams()
+  const { courses, locations, sessions, trainers, isLoading } = useCatalog()
   const course = useMemo(() => courses.find((item) => item.id === courseId), [courseId])
 
+  if (isLoading) return <p className="rounded-2xl border border-slate-200 bg-white p-8 text-slate-700">Loading the latest course details...</p>
   if (!course) {
     return <p className="rounded-2xl border border-slate-200 bg-white p-8 text-slate-700">Course not found.</p>
   }
@@ -71,7 +72,7 @@ export default function CourseDetailPage() {
                     <dl className="mt-4 grid gap-3 text-sm text-slate-600 sm:grid-cols-2">
                       <div><dt className="font-semibold text-slate-900">Time</dt><dd>{session.startTime} - {session.endTime}</dd></div>
                       <div><dt className="font-semibold text-slate-900">Location</dt><dd>{location?.name}</dd></div>
-                      <div><dt className="font-semibold text-slate-900">Trainer</dt><dd>{trainerNameById(session.trainerId)}</dd></div>
+                      <div><dt className="font-semibold text-slate-900">Trainer</dt><dd>{(() => { const trainer = trainers.find((item) => item.id === session.trainerId); return trainer ? `${trainer.firstName} ${trainer.lastName}` : 'To be confirmed' })()}</dd></div>
                       <div><dt className="font-semibold text-slate-900">Capacity</dt><dd>{session.attendeeCount + session.availableSeats} capacity / {session.availableSeats} spaces remaining</dd></div>
                       <div><dt className="font-semibold text-slate-900">Funding</dt><dd>{course.fundingType === 'funded' ? 'Funded - no payment required' : `Unfunded - ${formatCurrency(course.price ?? 0)}`}</dd></div>
                       <div><dt className="font-semibold text-slate-900">Minimum attendees</dt><dd>{course.fundingType === 'unfunded' ? course.minimumAttendees : 'Not applicable'}</dd></div>
