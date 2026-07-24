@@ -1,10 +1,12 @@
 import { Link } from 'react-router-dom'
-import { bookings, certificates, courses, delegates, invoices, locations, sessions } from '../../data/mockData'
+import { certificates, invoices } from '../../data/mockData'
 import Badge from '../../components/ui/Badge'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import SummaryLinkCard from '../../components/ui/SummaryLinkCard'
 import { formatCurrency, formatDate } from '../../utils/formatters'
+import useCatalog from '../../hooks/useCatalog'
+import { MockUser } from '../../types'
 
 function bookingVariant(status: string) {
   if (status === 'confirmed' || status === 'completed') return 'success'
@@ -12,10 +14,12 @@ function bookingVariant(status: string) {
   return 'warning'
 }
 
-export default function DelegateDashboardPage() {
-  const delegate = delegates[0]
+export default function DelegateDashboardPage({ currentUser }: { currentUser: MockUser }) {
+  const { bookings, courses, delegates, locations, sessions } = useCatalog()
+  const delegate = delegates.find((item) => item.id === currentUser.id)
+  if (!delegate) return <Card><p className="text-sm font-semibold text-slate-900">Your delegate profile could not be loaded.</p></Card>
   const courseRows = bookings
-    .filter((booking) => booking.delegateId === delegate.id || ['confirmed', 'completed', 'cancelled'].includes(booking.status))
+    .filter((booking) => booking.delegateId === delegate.id)
     .sort((a, b) => {
       const priority = { confirmed: 0, pending: 1, completed: 2, cancelled: 3 }
       return priority[a.status] - priority[b.status]

@@ -5,6 +5,13 @@ import { DelegatePayload, delegateValues, validateDelegatePayload } from "./dele
 export async function POST(request: Request) {
   try {
     const payload = await request.json() as DelegatePayload;
+    const authenticatedEmail = request.headers.get("oai-authenticated-user-email")?.trim().toLowerCase();
+    if (!authenticatedEmail) {
+      return Response.json({ code: "NOT_AUTHENTICATED", message: "Sign in securely before registering as a delegate." }, { status: 401 });
+    }
+    if (payload.email?.trim().toLowerCase() !== authenticatedEmail) {
+      return Response.json({ code: "EMAIL_MISMATCH", message: "Registration must use the email address from your secure sign-in." }, { status: 403 });
+    }
     const error = validateDelegatePayload(payload);
     if (error) return Response.json({ code: "INVALID_DELEGATE", message: error }, { status: 400 });
     const [delegate] = await getDb().insert(delegates).values({

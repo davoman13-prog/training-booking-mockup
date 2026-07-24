@@ -5,13 +5,13 @@ import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
 import Input from '../../components/ui/Input'
 import Textarea from '../../components/ui/Textarea'
-import Select from '../../components/ui/Select'
 import { formatCurrency, formatDate } from '../../utils/formatters'
 import { canBookSession, delegateSessionAvailabilityMessage } from '../../utils/sessionRules'
 import { trainerNameById } from '../../utils/trainerUtils'
 import useCatalog from '../../hooks/useCatalog'
+import { MockUser } from '../../types'
 
-export default function BookingFormPage() {
+export default function BookingFormPage({ currentUser }: { currentUser: MockUser }) {
   const { courseId, sessionId } = useParams()
   const navigate = useNavigate()
   const { courses, delegates, locations, sessions, refresh, isLive } = useCatalog()
@@ -22,7 +22,6 @@ export default function BookingFormPage() {
     [courseSessions, sessionId],
   )
   const selectedLocation = locations.find((item) => item.id === selectedSession?.locationId)
-  const [delegateId, setDelegateId] = useState(delegates[0]?.id ?? '')
   const [specialRequirements, setSpecialRequirements] = useState('')
   const [termsAccepted, setTermsAccepted] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -32,7 +31,7 @@ export default function BookingFormPage() {
     return <p className="rounded-2xl border border-slate-200 bg-white p-8 text-slate-700">Course or session not found.</p>
   }
 
-  const delegate = delegates.find((item) => item.id === delegateId)
+  const delegate = delegates.find((item) => item.id === currentUser.id)
   const bookingBlocked = !canBookSession(selectedSession)
   const blockedMessage =
     selectedSession.status === 'on_hold'
@@ -47,14 +46,14 @@ export default function BookingFormPage() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!course || !selectedSession || bookingBlocked || !delegateId) return
+    if (!course || !selectedSession || bookingBlocked || !delegate) return
     setSubmitting(true)
     setSubmitError('')
     try {
       const response = await fetch('/api/bookings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ delegateId, courseId: course.id, sessionId: selectedSession.id, specialRequirements, termsAccepted }),
+        body: JSON.stringify({ courseId: course.id, sessionId: selectedSession.id, specialRequirements, termsAccepted }),
       })
       const result = await response.json() as { booking?: { id: string }; message?: string }
       if (!response.ok) throw new Error(result.message ?? 'The booking could not be created.')
@@ -117,13 +116,7 @@ export default function BookingFormPage() {
           <div className="grid gap-6 lg:grid-cols-2">
             <div>
               <label className="text-sm font-semibold text-slate-900">Delegate</label>
-              <Select value={delegateId} onChange={(event) => setDelegateId(event.target.value)}>
-                {delegates.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name} ({item.organisation})
-                  </option>
-                ))}
-              </Select>
+              <Input value={delegate?.name ?? currentUser.name} readOnly />
             </div>
             <div>
               <label className="text-sm font-semibold text-slate-900">Practice / organisation</label>

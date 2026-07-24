@@ -4,8 +4,10 @@ import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
 import Table from '../../components/ui/Table'
-import { bookings, certificates, courses, delegates, invoices, locations, sessions } from '../../data/mockData'
+import { certificates, invoices } from '../../data/mockData'
 import { formatCurrency, formatDate } from '../../utils/formatters'
+import useCatalog from '../../hooks/useCatalog'
+import { MockUser } from '../../types'
 
 type BadgeVariant = 'default' | 'success' | 'warning' | 'danger' | 'info'
 
@@ -19,9 +21,10 @@ function attendanceLabel(marked: boolean) {
   return marked ? 'attended' : 'not marked'
 }
 
-export default function MyBookingsPage() {
+export default function MyBookingsPage({ currentUser }: { currentUser: MockUser }) {
   const [searchParams] = useSearchParams()
-  const delegate = delegates[0]
+  const { bookings, courses, delegates, locations, sessions } = useCatalog()
+  const delegate = delegates.find((item) => item.id === currentUser.id)
   const initialStatus = searchParams.get('status') ?? 'all'
   const [search, setSearch] = useState(searchParams.get('search') ?? '')
   const [bookingStatus, setBookingStatus] = useState(['confirmed', 'pending', 'completed', 'cancelled'].includes(initialStatus) ? initialStatus : 'all')
@@ -33,6 +36,7 @@ export default function MyBookingsPage() {
   const [sortBy, setSortBy] = useState('sessionDateAsc')
 
   const rows = useMemo(() => {
+    if (!delegate) return []
     return bookings
       .filter((booking) => booking.delegateId === delegate.id)
       .map((booking) => {
@@ -43,7 +47,7 @@ export default function MyBookingsPage() {
         const certificate = certificates.find((item) => item.id === booking.certificateId)
         return { booking, course, session, location, invoice, certificate }
       })
-  }, [delegate.id])
+  }, [bookings, courses, delegate, locations, sessions])
 
   const filteredRows = useMemo(() => {
     const query = search.trim().toLowerCase()
@@ -120,7 +124,7 @@ export default function MyBookingsPage() {
       <div className="rounded-2xl border border-cyan-100 bg-white p-6 shadow-sm">
         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-cyan-700">My bookings</p>
         <h1 className="mt-2 text-3xl font-semibold text-slate-950">Upcoming and recent bookings</h1>
-        <p className="mt-2 text-sm text-slate-600">Showing mock bookings for {delegate.name}.</p>
+        <p className="mt-2 text-sm text-slate-600">Showing live bookings for {delegate?.name ?? currentUser.name}.</p>
       </div>
 
       <Card>
