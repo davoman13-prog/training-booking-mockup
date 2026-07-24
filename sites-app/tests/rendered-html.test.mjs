@@ -96,6 +96,8 @@ test("session summaries and removal rules use live attendee counts", async () =>
 
   assert.match(form, /\{session\.attendeeCount\}/);
   assert.match(form, /const spacesRemaining = session\?\.availableSeats \?\? 0/);
+  assert.match(form, /Confirm removal/);
+  assert.doesNotMatch(form, /window\.confirm/);
   assert.match(rules, /session\.attendeeCount < minimum/);
   assert.match(route, /SESSION_HAS_BOOKINGS/);
   assert.match(route, /existing\.attendeeCount > 0/);
