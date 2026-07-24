@@ -26,7 +26,7 @@ export function isSessionAtRisk(session: Session, course = courses.find((item) =
       session.status !== 'on_hold' &&
       daysUntil >= 0 &&
       daysUntil <= 14 &&
-      activeBookingCount(session.id) < minimum,
+      session.attendeeCount < minimum,
   )
 }
 
@@ -36,13 +36,13 @@ export function sessionDisplayStatus(session: Session, course = courses.find((it
   if (session.status === 'on_hold') return 'On Hold'
   if (session.availableSeats <= 0) return 'Full'
   if (isSessionAtRisk(session, course)) return 'At risk'
-  if (course?.minimumAttendees && activeBookingCount(session.id) >= course.minimumAttendees) return 'Confirmed'
+  if (course?.minimumAttendees && session.attendeeCount >= course.minimumAttendees) return 'Confirmed'
   return 'Open'
 }
 
 export function riskExplanation(session: Session, course?: Course) {
   const minimum = course?.minimumAttendees
-  const activeCount = activeBookingCount(session.id)
+  const activeCount = session.attendeeCount
   const days = daysUntilSession(session)
 
   if (!minimum) return 'No minimum attendee requirement for this course.'
@@ -65,7 +65,7 @@ export function statusVariant(status: SessionDisplayStatus) {
 export function delegateSessionAvailabilityMessage(session: Session, course?: Course) {
   if (session.status === 'on_hold') return 'On Hold - no new bookings'
   if (isSessionAtRisk(session, course)) return 'This session is not yet confirmed'
-  if (course?.minimumAttendees && activeBookingCount(session.id) < course.minimumAttendees) return 'Awaiting minimum numbers'
+  if (course?.minimumAttendees && session.attendeeCount < course.minimumAttendees) return 'Awaiting minimum numbers'
   return ''
 }
 
