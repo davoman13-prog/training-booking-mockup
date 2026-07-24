@@ -1,21 +1,15 @@
-import { bookings, courses } from '../data/mockData'
 import { Course, Session } from '../types'
-
-export const mockCurrentDate = '2026-07-10'
 
 export type SessionDisplayStatus = 'Cancelled' | 'Completed' | 'On Hold' | 'Full' | 'At risk' | 'Confirmed' | 'Open'
 
-export function activeBookingCount(sessionId: string) {
-  return bookings.filter((booking) => booking.sessionId === sessionId && ['confirmed', 'pending'].includes(booking.status)).length
-}
-
 export function daysUntilSession(session: Session) {
   const start = new Date(`${session.startDate}T00:00:00`)
-  const current = new Date(`${mockCurrentDate}T00:00:00`)
+  const now = new Date()
+  const current = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   return Math.ceil((start.getTime() - current.getTime()) / 86_400_000)
 }
 
-export function isSessionAtRisk(session: Session, course = courses.find((item) => item.id === session.courseId)) {
+export function isSessionAtRisk(session: Session, course?: Course) {
   const minimum = course?.minimumAttendees
   const daysUntil = daysUntilSession(session)
 
@@ -30,7 +24,7 @@ export function isSessionAtRisk(session: Session, course = courses.find((item) =
   )
 }
 
-export function sessionDisplayStatus(session: Session, course = courses.find((item) => item.id === session.courseId)): SessionDisplayStatus {
+export function sessionDisplayStatus(session: Session, course?: Course): SessionDisplayStatus {
   if (session.status === 'cancelled') return 'Cancelled'
   if (session.status === 'completed') return 'Completed'
   if (session.status === 'on_hold') return 'On Hold'

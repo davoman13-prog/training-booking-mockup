@@ -45,6 +45,7 @@ const invoicesUrl = new URL("../legacy-src/pages/delegate/InvoicesPage.tsx", imp
 const accountPageUrl = new URL("../legacy-src/pages/delegate/AccountPage.tsx", import.meta.url);
 const accountProfileUrl = new URL("../app/api/account/profile/route.ts", import.meta.url);
 const accountPasswordUrl = new URL("../app/api/account/password/route.ts", import.meta.url);
+const adminDashboardUrl = new URL("../legacy-src/pages/admin/DashboardPage.tsx", import.meta.url);
 const authSessionUrl = new URL("../app/api/auth/session/route.ts", import.meta.url);
 const authCoreUrl = new URL("../app/api/auth/auth.ts", import.meta.url);
 const authLoginUrl = new URL("../app/api/auth/login/route.ts", import.meta.url);
@@ -286,4 +287,20 @@ test("delegates can securely maintain their own profile and password", async () 
   assert.match(page, /fetch\('\/api\/account\/profile'/);
   assert.match(page, /fetch\('\/api\/account\/password'/);
   assert.match(page, /Email changes will be enabled with email verification/);
+});
+
+test("administration dashboard waits for live data and uses the real current date", async () => {
+  const [dashboard, hook, rules] = await Promise.all([
+    readFile(adminDashboardUrl, "utf8"),
+    readFile(catalogHookUrl, "utf8"),
+    readFile(sessionRulesUrl, "utf8"),
+  ]);
+  assert.doesNotMatch(dashboard, /data\/mockData|mock interface/);
+  assert.match(dashboard, /if \(isLoading\)/);
+  assert.match(dashboard, /if \(!isLive\)/);
+  assert.match(dashboard, /new Date\(\)\.toISOString\(\)\.slice\(0, 7\)/);
+  assert.doesNotMatch(hook, /fallbackCourses|fallbackCatalog|data\/mockData/);
+  assert.match(hook, /courses: \[\], locations: \[\]/);
+  assert.doesNotMatch(rules, /mockCurrentDate|data\/mockData/);
+  assert.match(rules, /const now = new Date\(\)/);
 });

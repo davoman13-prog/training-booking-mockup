@@ -1,12 +1,4 @@
 import { useCallback, useEffect, useState } from "react";
-import {
-  courses as fallbackCourses,
-  locations as fallbackLocations,
-  sessions as fallbackSessions,
-  trainers as fallbackTrainers,
-  delegates as fallbackDelegates,
-  bookings as fallbackBookings,
-} from "../data/mockData";
 import { Booking, Course, Delegate, Location, Session, Trainer } from "../types";
 
 interface Catalog {
@@ -18,17 +10,12 @@ interface Catalog {
   bookings: Booking[];
 }
 
-const fallbackCatalog: Catalog = {
-  courses: fallbackCourses,
-  locations: fallbackLocations,
-  sessions: fallbackSessions,
-  trainers: fallbackTrainers,
-  delegates: fallbackDelegates,
-  bookings: fallbackBookings,
+const emptyCatalog: Catalog = {
+  courses: [], locations: [], sessions: [], trainers: [], delegates: [], bookings: [],
 };
 
 export default function useCatalog() {
-  const [catalog, setCatalog] = useState<Catalog>(fallbackCatalog);
+  const [catalog, setCatalog] = useState<Catalog>(emptyCatalog);
   const [isLive, setIsLive] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
