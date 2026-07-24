@@ -194,6 +194,7 @@ test("delegate accounts use hashed passwords and secure server sessions", async 
   assert.match(registerRoute, /hashPassword/);
   assert.match(registerRoute, /delegate_auth_accounts/);
   assert.match(app, /fetch\('\/api\/auth\/session'/);
+  assert.match(app, /result\.authenticated && result\.user/);
   assert.doesNotMatch(app, /kalu-training-mock-user/);
   assert.match(login, /A ChatGPT account is not required/);
   assert.match(login, /fetch\('\/api\/auth\/login'/);
