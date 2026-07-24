@@ -1,38 +1,26 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { courses, locations, sessions, trainers } from '../../data/mockData'
 import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
 import Table from '../../components/ui/Table'
 import { formatDate } from '../../utils/formatters'
-import { Course, Session, Trainer } from '../../types'
+import { Course, Session } from '../../types'
 import { trainerFullName } from '../../utils/trainerUtils'
-
-function sessionLocation(session: Session) {
-  return locations.find((location) => location.id === session.locationId)?.name ?? 'Location to be confirmed'
-}
-
-function sessionCourse(session: Session) {
-  return courses.find((course) => course.id === session.courseId)
-}
+import useCatalog from '../../hooks/useCatalog'
 
 function courseActiveLabel(course: Course) {
   return course.status === 'cancelled' || course.status === 'completed' ? 'inactive' : 'active'
 }
 
-function trainerSessions(trainer: Trainer) {
-  return sessions.filter((session) => session.trainerId === trainer.id)
-}
-
 export default function TrainerDetailPage() {
   const { trainerId } = useParams()
+  const { courses, locations, sessions, trainers, isLive, isLoading } = useCatalog()
   const trainer = trainers.find((item) => item.id === trainerId)
-  const [localStatus, setLocalStatus] = useState(trainer?.status)
-  const [deleted, setDeleted] = useState(false)
-  const [message, setMessage] = useState('')
+  const sessionLocation = (session: Session) => locations.find((location) => location.id === session.locationId)?.name ?? 'Location to be confirmed'
+  const sessionCourse = (session: Session) => courses.find((course) => course.id === session.courseId)
 
-  const linkedSessions = useMemo(() => (trainer ? trainerSessions(trainer) : []), [trainer])
+  const linkedSessions = useMemo(() => (trainer ? sessions.filter((session) => session.trainerId === trainer.id) : []), [sessions, trainer])
   const upcomingSessions = linkedSessions.filter((session) => session.status === 'scheduled')
   const completedSessions = linkedSessions.filter((session) => session.status === 'completed')
   const cancelledSessions = linkedSessions.filter((session) => session.status === 'cancelled')
@@ -57,37 +45,19 @@ export default function TrainerDetailPage() {
         upcomingDate: upcoming[0]?.startDate,
       }
     })
-  }, [linkedSessions])
+  }, [courses, linkedSessions])
 
-  if (!trainer || deleted) {
-    return <p className="rounded-2xl border border-slate-200 bg-white p-8 text-slate-700">Trainer not found in the current prototype list.</p>
+  if (!isLive && isLoading) {
+    return <p className="rounded-2xl border border-slate-200 bg-white p-8 text-slate-700">Loading the latest trainer details…</p>
+  }
+  if (!trainer) {
+    return <p className="rounded-2xl border border-slate-200 bg-white p-8 text-slate-700">Trainer not found in the live catalogue.</p>
   }
 
   const approvedCourses = trainer.approvedCourseIds
     .map((courseId) => courses.find((course) => course.id === courseId))
     .filter((course): course is Course => Boolean(course))
-  const displayTrainer = { ...trainer, status: localStatus ?? trainer.status }
-
-  function deleteTrainer() {
-    if (!trainer) return
-
-    if (upcomingSessions.length > 0) {
-      const makeInactive = window.confirm('This trainer cannot be deleted because they are assigned to one or more upcoming sessions. Make them inactive instead?')
-      if (makeInactive) {
-        trainer.status = 'inactive'
-        setLocalStatus('inactive')
-        setMessage('Trainer marked inactive in this prototype. No database was updated.')
-      }
-      return
-    }
-
-    const confirmed = window.confirm('Mock-only confirmation: delete this trainer? Completed historical sessions will remain visible for reporting.')
-    if (confirmed) {
-      const index = trainers.findIndex((item) => item.id === trainer.id)
-      if (index >= 0) trainers.splice(index, 1)
-      setDeleted(true)
-    }
-  }
+  const displayTrainer = trainer
 
   function renderSessionRows(rows: Session[]) {
     if (!rows.length) return <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-sm text-slate-600">No sessions in this category.</div>
@@ -122,11 +92,8 @@ export default function TrainerDetailPage() {
         <div className="flex flex-wrap gap-3">
           <Link to="/admin/trainers"><Button variant="secondary">Back to trainers</Button></Link>
           <Link to={`/admin/trainers/${trainer.id}/edit`}><Button>Edit Trainer</Button></Link>
-          <Button type="button" variant="ghost" onClick={deleteTrainer}>Delete Trainer</Button>
         </div>
       </div>
-
-      {message ? <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800">{message}</div> : null}
 
       <div className="grid gap-4 lg:grid-cols-4">
         <Card><p className="text-sm text-slate-500">Status</p><p className="mt-2"><Badge label={displayTrainer.status} variant={displayTrainer.status === 'active' ? 'success' : 'warning'} /></p></Card>

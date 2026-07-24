@@ -1,18 +1,14 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { locations, sessions } from '../../data/mockData'
 import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
 import Input from '../../components/ui/Input'
 import Select from '../../components/ui/Select'
 import Table from '../../components/ui/Table'
+import useCatalog from '../../hooks/useCatalog'
 
 const anyValue = 'any'
-
-function upcomingSessionCount(locationId: string) {
-  return sessions.filter((session) => session.locationId === locationId && session.status === 'scheduled').length
-}
 
 function capacityBand(capacity: number) {
   if (capacity < 20) return 'small'
@@ -21,6 +17,8 @@ function capacityBand(capacity: number) {
 }
 
 export default function ManageLocationsPage() {
+  const { locations, sessions, isLive, isLoading } = useCatalog()
+  const upcomingSessionCount = useCallback((locationId: string) => sessions.filter((session) => session.locationId === locationId && session.status === 'scheduled').length, [sessions])
   const [searchParams] = useSearchParams()
   const [searchTerm, setSearchTerm] = useState(searchParams.get('search') ?? '')
   const [activeStatus, setActiveStatus] = useState(searchParams.get('status') ?? anyValue)
@@ -29,7 +27,7 @@ export default function ManageLocationsPage() {
   const [sessionAvailability, setSessionAvailability] = useState(searchParams.get('sessions') ?? anyValue)
   const [sortBy, setSortBy] = useState('name-az')
 
-  const cities = useMemo(() => Array.from(new Set(locations.map((location) => location.city))).sort(), [])
+  const cities = useMemo(() => Array.from(new Set(locations.map((location) => location.city))).sort(), [locations])
   const activeFilterCount = [searchTerm.trim(), activeStatus !== anyValue, city !== anyValue, capacity !== anyValue, sessionAvailability !== anyValue].filter(Boolean).length
 
   const filteredLocations = useMemo(() => {
@@ -69,7 +67,7 @@ export default function ManageLocationsPage() {
         if (sortBy === 'sessions') return upcomingSessionCount(b.id) - upcomingSessionCount(a.id)
         return 0
       })
-  }, [activeStatus, capacity, city, searchTerm, sessionAvailability, sortBy])
+  }, [activeStatus, capacity, city, locations, searchTerm, sessionAvailability, sortBy, upcomingSessionCount])
 
   function clearFilters() {
     setSearchTerm('')
@@ -86,6 +84,7 @@ export default function ManageLocationsPage() {
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-cyan-700">Locations</p>
           <h1 className="mt-2 text-3xl font-semibold text-slate-950">Manage locations</h1>
+          <p className={`mt-2 text-sm font-semibold ${isLive ? 'text-emerald-700' : 'text-amber-700'}`}>{isLive ? 'Connected to the live catalogue' : isLoading ? 'Loading the live catalogue' : 'Live catalogue unavailable'}</p>
         </div>
         <Link to="/admin/locations/new">
           <Button>Add new location</Button>

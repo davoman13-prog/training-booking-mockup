@@ -1,6 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { courses, sessions, trainers as initialTrainers } from '../../data/mockData'
 import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
@@ -8,21 +7,14 @@ import Input from '../../components/ui/Input'
 import Select from '../../components/ui/Select'
 import Table from '../../components/ui/Table'
 import { Trainer } from '../../types'
-import { courseNameById, trainerFullName, trainerSessionCounts } from '../../utils/trainerUtils'
+import { trainerFullName } from '../../utils/trainerUtils'
+import useCatalog from '../../hooks/useCatalog'
 
 const anyValue = 'any'
 
-function hasUpcomingSessions(trainer: Trainer) {
-  return sessions.some((session) => session.trainerId === trainer.id && session.status === 'scheduled')
-}
-
-function hasCompletedSessions(trainer: Trainer) {
-  return sessions.some((session) => session.trainerId === trainer.id && session.status === 'completed')
-}
-
 export default function ManageTrainersPage() {
+  const { courses, sessions, trainers: trainerRows, isLive, isLoading } = useCatalog()
   const [searchParams] = useSearchParams()
-  const [trainerRows, setTrainerRows] = useState(initialTrainers)
   const [searchTerm, setSearchTerm] = useState(searchParams.get('search') ?? '')
   const [status, setStatus] = useState(searchParams.get('status') ?? anyValue)
   const [townCity, setTownCity] = useState(searchParams.get('townCity') ?? anyValue)
@@ -31,11 +23,17 @@ export default function ManageTrainersPage() {
   const [completed, setCompleted] = useState(searchParams.get('completed') ?? anyValue)
   const [courseFilter, setCourseFilter] = useState(searchParams.get('courseFilter') ?? anyValue)
   const [sortBy, setSortBy] = useState('name')
-  const [message, setMessage] = useState('')
+  const hasUpcomingSessions = useCallback((trainer: Trainer) => sessions.some((session) => session.trainerId === trainer.id && session.status === 'scheduled'), [sessions])
+  const hasCompletedSessions = useCallback((trainer: Trainer) => sessions.some((session) => session.trainerId === trainer.id && session.status === 'completed'), [sessions])
+  const trainerSessionCounts = useCallback((trainerId: string) => ({
+    upcoming: sessions.filter((session) => session.trainerId === trainerId && session.status === 'scheduled').length,
+    completed: sessions.filter((session) => session.trainerId === trainerId && session.status === 'completed').length,
+  }), [sessions])
+  const courseNameById = useCallback((courseId: string) => courses.find((course) => course.id === courseId)?.title ?? courseId, [courses])
 
   const towns = useMemo(() => Array.from(new Set(trainerRows.map((trainer) => trainer.townCity))).sort(), [trainerRows])
   const organisations = useMemo(() => Array.from(new Set(trainerRows.map((trainer) => trainer.organisation))).sort(), [trainerRows])
-  const categories = useMemo(() => Array.from(new Set(courses.map((course) => course.category))).sort(), [])
+  const categories = useMemo(() => Array.from(new Set(courses.map((course) => course.category))).sort(), [courses])
   const activeFilterCount = [
     searchTerm.trim(),
     status !== anyValue,
@@ -93,7 +91,7 @@ export default function ManageTrainersPage() {
         if (sortBy === 'status') return a.status.localeCompare(b.status) || trainerFullName(a).localeCompare(trainerFullName(b))
         return 0
       })
-  }, [completed, courseFilter, organisation, searchTerm, sortBy, status, townCity, trainerRows, upcoming])
+  }, [completed, courseFilter, courseNameById, courses, hasCompletedSessions, hasUpcomingSessions, organisation, searchTerm, sortBy, status, townCity, trainerRows, trainerSessionCounts, upcoming])
 
   function clearFilters() {
     setSearchTerm('')
@@ -106,36 +104,18 @@ export default function ManageTrainersPage() {
     setSortBy('name')
   }
 
-  function deleteTrainer(trainer: Trainer) {
-    if (hasUpcomingSessions(trainer)) {
-      const makeInactive = window.confirm('This trainer cannot be deleted because they are assigned to one or more upcoming sessions. Make them inactive instead?')
-      if (makeInactive) {
-        setTrainerRows((current) => current.map((item) => (item.id === trainer.id ? { ...item, status: 'inactive' } : item)))
-        setMessage(`${trainerFullName(trainer)} was marked inactive in this prototype. No database was updated.`)
-      }
-      return
-    }
-
-    const confirmed = window.confirm(`Mock-only confirmation: delete ${trainerFullName(trainer)}? Historical completed sessions will remain visible for reporting.`)
-    if (confirmed) {
-      setTrainerRows((current) => current.filter((item) => item.id !== trainer.id))
-      setMessage(`${trainerFullName(trainer)} was deleted from the local prototype list. Historical records remain in mock session history.`)
-    }
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-cyan-700">Trainers</p>
           <h1 className="mt-2 text-3xl font-semibold text-slate-950">Manage trainers</h1>
+          <p className={`mt-2 text-sm font-semibold ${isLive ? 'text-emerald-700' : 'text-amber-700'}`}>{isLive ? 'Connected to the live catalogue' : isLoading ? 'Loading the live catalogue' : 'Live catalogue unavailable'}</p>
         </div>
         <Link to="/admin/trainers/new">
           <Button>Add Trainer</Button>
         </Link>
       </div>
-
-      {message ? <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">{message}</div> : null}
 
       <Card>
         <div className="grid gap-4 lg:grid-cols-[1.3fr_0.8fr_0.9fr_1fr_0.8fr_0.8fr_1fr_0.9fr_auto] lg:items-end">
@@ -244,7 +224,7 @@ export default function ManageTrainersPage() {
                 <td className="px-4 py-4 text-right text-sm">
                   <div className="flex justify-end gap-3">
                     <Link to={`/admin/trainers/${trainer.id}/edit`} className="font-semibold text-slate-900 hover:text-cyan-800">Edit</Link>
-                    <button type="button" className="font-semibold text-rose-700 hover:text-rose-900" onClick={() => deleteTrainer(trainer)}>Delete</button>
+                    <Link to={`/admin/trainers/${trainer.id}`} className="font-semibold text-cyan-800 hover:text-cyan-950">View</Link>
                   </div>
                 </td>
               </tr>
