@@ -1,6 +1,6 @@
 import { FormEvent, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
-import { bookings, courses, locations, sessions } from '../../data/mockData'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { bookings } from '../../data/mockData'
 import Badge from '../../components/ui/Badge'
 import Card from '../../components/ui/Card'
 import Input from '../../components/ui/Input'
@@ -12,6 +12,7 @@ import { formatCurrency, formatDate } from '../../utils/formatters'
 import { activeBookingCount, daysUntilSession, riskExplanation, sessionDisplayStatus as calculatedSessionStatus, statusVariant as calculatedStatusVariant } from '../../utils/sessionRules'
 import { trainerNameById } from '../../utils/trainerUtils'
 import { Course, Session } from '../../types'
+import useCatalog from '../../hooks/useCatalog'
 
 type BadgeVariant = 'default' | 'success' | 'warning' | 'danger' | 'info'
 
@@ -39,20 +40,67 @@ function statusVariant(status: string): BadgeVariant {
 
 export default function CourseFormPage() {
   const { courseId } = useParams()
-  const course = useMemo(() => courses.find((item) => item.id === courseId), [courseId])
+  const navigate = useNavigate()
+  const { courses, locations, sessions, isLive } = useCatalog()
+  const course = useMemo(() => courses.find((item) => item.id === courseId), [courseId, courses])
   const editing = Boolean(course)
   const [saved, setSaved] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
   const [removeMessage, setRemoveMessage] = useState('')
   const [removeSuccess, setRemoveSuccess] = useState(false)
-  const categories = useMemo(() => Array.from(new Set(courses.map((item) => item.category))).sort(), [])
-  const linkedSessions = useMemo(() => course ? sessions.filter((session) => session.courseId === course.id) : [], [course])
+  const categories = useMemo(() => Array.from(new Set(courses.map((item) => item.category))).sort(), [courses])
+  const linkedSessions = useMemo(() => course ? sessions.filter((session) => session.courseId === course.id) : [], [course, sessions])
   const linkedBookings = useMemo(() => course ? bookings.filter((booking) => booking.courseId === course.id) : [], [course])
   const upcomingSessions = linkedSessions.filter((session) => session.status === 'scheduled').length
   const canRemoveCourse = editing && linkedBookings.length === 0
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    setSaved(true)
+    setSaving(true)
+    setSaved(false)
+    setSaveError('')
+
+    const form = new FormData(event.currentTarget)
+    const optionalNumber = (name: string) => {
+      const value = String(form.get(name) ?? '').trim()
+      return value ? Number(value) : null
+    }
+    const payload = {
+      title: String(form.get('title') ?? ''),
+      category: String(form.get('category') ?? ''),
+      description: String(form.get('description') ?? ''),
+      fundingType: String(form.get('fundingType') ?? 'funded'),
+      price: optionalNumber('price'),
+      minimumAttendees: optionalNumber('minimumAttendees'),
+      capacity: Number(form.get('capacity') ?? 0),
+      duration: String(form.get('duration') ?? ''),
+      status: String(form.get('status') ?? 'open'),
+      locationId: String(form.get('locationId') ?? ''),
+      tags: String(form.get('tags') ?? '')
+        .split(',')
+        .map((tag) => tag.trim())
+        .filter(Boolean),
+    }
+
+    try {
+      const response = await fetch(editing ? `/api/courses/${course!.id}` : '/api/courses', {
+        method: editing ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      const result = await response.json() as { course?: { id: string }; message?: string }
+      if (!response.ok) throw new Error(result.message ?? 'The course could not be saved.')
+
+      setSaved(true)
+      if (!editing && result.course?.id) {
+        navigate(`/admin/courses/${result.course.id}/edit`, { replace: true })
+      }
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : 'The course could not be saved.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   function handleRemoveCourse() {
@@ -64,11 +112,20 @@ export default function CourseFormPage() {
       return
     }
 
-    const confirmed = window.confirm(`Mock-only confirmation: remove/archive "${course.title}" from the course list? No real data will be deleted.`)
-    if (confirmed) {
-      setRemoveSuccess(true)
-      setRemoveMessage(`Mock course "${course.title}" removed. No database was updated.`)
-    }
+    const confirmed = window.confirm(`Remove "${course.title}" from the live course catalogue?`)
+    if (!confirmed) return
+
+    fetch(`/api/courses/${course.id}`, { method: 'DELETE' })
+      .then(async (response) => {
+        const result = await response.json() as { message?: string }
+        if (!response.ok) throw new Error(result.message ?? 'The course could not be removed.')
+        setRemoveSuccess(true)
+        setRemoveMessage(`Course "${course.title}" was removed from the live catalogue.`)
+      })
+      .catch((error: unknown) => {
+        setRemoveSuccess(false)
+        setRemoveMessage(error instanceof Error ? error.message : 'The course could not be removed.')
+      })
   }
 
   return (
@@ -77,7 +134,8 @@ export default function CourseFormPage() {
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-cyan-700">{editing ? 'Edit course' : 'Add course'}</p>
           <h1 className="mt-2 text-3xl font-semibold text-slate-950">{editing ? `Edit Course: ${course?.title}` : 'Create new course'}</h1>
-          {editing ? <p className="mt-2 text-sm text-slate-600">{upcomingSessions} upcoming session{upcomingSessions === 1 ? '' : 's'} linked to this mock course.</p> : null}
+          {editing ? <p className="mt-2 text-sm text-slate-600">{upcomingSessions} upcoming session{upcomingSessions === 1 ? '' : 's'} linked to this course.</p> : null}
+          <p className={`mt-1 text-sm font-semibold ${isLive ? 'text-emerald-700' : 'text-amber-700'}`}>{isLive ? 'Connected to the live catalogue' : 'Loading the live catalogue'}</p>
         </div>
         <Link to="/admin/courses">
           <Button variant="secondary">Back to courses</Button>
@@ -85,7 +143,12 @@ export default function CourseFormPage() {
       </div>
       {saved ? (
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">
-          Mock course saved. No database was updated.
+          Course saved to the live catalogue.
+        </div>
+      ) : null}
+      {saveError ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-800">
+          {saveError}
         </div>
       ) : null}
       {removeMessage ? (
@@ -108,48 +171,48 @@ export default function CourseFormPage() {
           <div className="grid gap-6 lg:grid-cols-2">
             <div>
               <label className="text-sm font-semibold text-slate-900">Course name</label>
-              <Input defaultValue={course?.title ?? ''} placeholder="Emergency First Aid at Work" />
+              <Input name="title" required defaultValue={course?.title ?? ''} placeholder="Emergency First Aid at Work" />
             </div>
             <div>
               <label className="text-sm font-semibold text-slate-900">Category</label>
-              <Select defaultValue={course?.category ?? categories[0]}>
+              <Select name="category" required defaultValue={course?.category ?? categories[0]}>
                 {categories.map((category) => <option key={category} value={category}>{category}</option>)}
               </Select>
             </div>
           </div>
           <div>
             <label className="text-sm font-semibold text-slate-900">Description</label>
-            <Textarea defaultValue={course?.description ?? ''} rows={5} />
+            <Textarea name="description" required defaultValue={course?.description ?? ''} rows={5} />
           </div>
           <div className="grid gap-6 lg:grid-cols-4">
             <div>
               <label className="text-sm font-semibold text-slate-900">Funding type</label>
-              <Select defaultValue={course?.fundingType ?? 'funded'}>
+              <Select name="fundingType" defaultValue={course?.fundingType ?? 'funded'}>
                 <option value="funded">Funded</option>
                 <option value="unfunded">Unfunded</option>
               </Select>
             </div>
             <div>
               <label className="text-sm font-semibold text-slate-900">Price</label>
-              <Input type="number" defaultValue={course?.price?.toString() ?? ''} placeholder="Optional" />
+              <Input name="price" type="number" min="0" step="0.01" defaultValue={course?.price?.toString() ?? ''} placeholder="Optional" />
             </div>
             <div>
               <label className="text-sm font-semibold text-slate-900">Minimum attendees</label>
-              <Input type="number" defaultValue={course?.minimumAttendees?.toString() ?? ''} placeholder="Optional" />
+              <Input name="minimumAttendees" type="number" min="1" defaultValue={course?.minimumAttendees?.toString() ?? ''} placeholder="Optional" />
             </div>
             <div>
               <label className="text-sm font-semibold text-slate-900">Maximum attendees</label>
-              <Input type="number" defaultValue={course?.capacity.toString() ?? ''} />
+              <Input name="capacity" required type="number" min="1" defaultValue={course?.capacity.toString() ?? ''} />
             </div>
           </div>
           <div className="grid gap-6 lg:grid-cols-4">
             <div>
               <label className="text-sm font-semibold text-slate-900">Duration</label>
-              <Input defaultValue={course?.duration ?? ''} />
+              <Input name="duration" required defaultValue={course?.duration ?? ''} />
             </div>
             <div>
               <label className="text-sm font-semibold text-slate-900">Status</label>
-              <Select defaultValue={course?.status ?? 'open'}>
+              <Select name="status" defaultValue={course?.status ?? 'open'}>
                 <option value="open">Open</option>
                 <option value="awaiting_minimum">Awaiting minimum</option>
                 <option value="at_risk">At risk</option>
@@ -166,17 +229,17 @@ export default function CourseFormPage() {
             </div>
             <div>
               <label className="text-sm font-semibold text-slate-900">Primary location</label>
-              <Select defaultValue={course?.locationId ?? locations[0]?.id}>
+              <Select name="locationId" required defaultValue={course?.locationId ?? locations[0]?.id}>
                 {locations.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}
               </Select>
             </div>
           </div>
           <div>
             <label className="text-sm font-semibold text-slate-900">Tags / keywords</label>
-            <Input defaultValue={course?.tags.join(', ') ?? ''} placeholder="First aid, clinical, emergency" />
+            <Input name="tags" defaultValue={course?.tags.join(', ') ?? ''} placeholder="First aid, clinical, emergency" />
           </div>
           <div className="flex justify-end">
-            <Button type="submit">{editing ? 'Save changes' : 'Create course'}</Button>
+            <Button type="submit" disabled={saving}>{saving ? 'Saving…' : editing ? 'Save changes' : 'Create course'}</Button>
           </div>
         </form>
       </Card>
@@ -185,7 +248,7 @@ export default function CourseFormPage() {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-xl font-semibold text-slate-950">Associated sessions</h2>
-              <p className="mt-1 text-sm text-slate-600">All mock sessions linked to {course.title}.</p>
+              <p className="mt-1 text-sm text-slate-600">All sessions linked to {course.title}.</p>
             </div>
             <Link to={`/admin/sessions/new?courseId=${course.id}`}>
               <Button>Add Session for this Course</Button>
@@ -237,8 +300,8 @@ export default function CourseFormPage() {
               <h2 className="text-xl font-semibold text-slate-950">Remove course</h2>
               <p className="mt-1 text-sm text-slate-600">
                 {canRemoveCourse
-                  ? 'This mock course has no delegate bookings and can be removed in the prototype.'
-                  : 'This mock course has delegate bookings and cannot be removed.'}
+                  ? 'This course has no delegate bookings and can be removed if it has no linked sessions.'
+                  : 'This course has delegate bookings and cannot be removed.'}
               </p>
             </div>
             <Button type="button" variant="secondary" onClick={handleRemoveCourse}>
