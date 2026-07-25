@@ -12,7 +12,8 @@ export interface Course {
   id: string
   title: string
   category: string
-  description: string
+    description: string
+    joiningInstructions?: string
   fundingType: CourseFundingType
   status: CourseStatus
   price?: number

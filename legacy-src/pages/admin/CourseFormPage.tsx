@@ -72,6 +72,7 @@ export default function CourseFormPage() {
       title: String(form.get('title') ?? ''),
       category: String(form.get('category') ?? ''),
       description: String(form.get('description') ?? ''),
+      joiningInstructions: String(form.get('joiningInstructions') ?? ''),
       fundingType: String(form.get('fundingType') ?? 'funded'),
       price: optionalNumber('price'),
       minimumAttendees: optionalNumber('minimumAttendees'),
@@ -185,6 +186,7 @@ export default function CourseFormPage() {
             course.id,
             course.title,
             course.category,
+            course.joiningInstructions,
             course.fundingType,
             course.price ?? '',
             course.minimumAttendees ?? '',
@@ -212,6 +214,16 @@ export default function CourseFormPage() {
           <div>
             <label className="text-sm font-semibold text-slate-900">Description</label>
             <Textarea name="description" required defaultValue={course?.description ?? ''} rows={5} />
+          </div>
+          <div>
+            <label className="text-sm font-semibold text-slate-900">Joining instructions / special information</label>
+            <Textarea
+              name="joiningInstructions"
+              defaultValue={course?.joiningInstructions ?? ''}
+              rows={5}
+              placeholder="Arrival time, parking, reception instructions, what to bring, dress requirements or preparation."
+            />
+            <p className="mt-2 text-xs text-slate-500">Included automatically in the delegate’s booking confirmation email.</p>
           </div>
           <div className="grid gap-6 lg:grid-cols-4">
             <div>

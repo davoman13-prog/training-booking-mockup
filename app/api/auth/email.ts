@@ -27,7 +27,7 @@ function generateCode() {
   return value.toString().padStart(6, "0");
 }
 
-async function sendEmail(to: string, subject: string, text: string, html: string) {
+export async function sendTransactionalEmail(to: string, subject: string, text: string, html: string) {
   const config = configuration();
   if (!config.apiKey || !config.fromEmail) throw new Error("Email delivery is not configured.");
   const response = await fetch("https://api.brevo.com/v3/smtp/email", {
@@ -79,7 +79,7 @@ export async function createAndSendCode(details: {
   ]);
 
   const action = details.purpose === "verify_email" ? "confirm your email address" : "reset your password";
-  await sendEmail(
+  await sendTransactionalEmail(
     details.email,
     details.purpose === "verify_email" ? "Your Kalu Training verification code" : "Your Kalu Training password reset code",
     `Hello ${details.name},\n\nYour code to ${action} is ${code}.\n\nIt expires in ${CODE_LIFETIME_MINUTES} minutes. If you did not request this, you can ignore this email.`,
