@@ -1,0 +1,1 @@
+ALTER TABLE `courses` ADD `joining_instructions` text DEFAULT '' NOT NULL;

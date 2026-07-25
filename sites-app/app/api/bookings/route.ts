@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import { currentDelegate } from "../auth/auth";
+import { BookingEmailDetails, sendBookingConfirmation } from "./bookingConfirmationEmail";
 
 interface BookingPayload {
   courseId?: string;
@@ -63,7 +64,31 @@ export async function POST(request: Request) {
     await env.DB.batch(statements);
     const booking = await env.DB.prepare("SELECT * FROM bookings WHERE id = ?").bind(id).first();
     if (!booking) return Response.json({ code: "SESSION_FULL", message: "The final available place was taken before this booking completed. Please choose another session." }, { status: 409 });
-    return Response.json({ booking }, { status: 201 });
+    let confirmationEmailSent = false;
+    try {
+      const details = await env.DB.prepare(
+        `SELECT b.id AS bookingId,
+                trim(d.first_name || ' ' || d.last_name) AS delegateName, d.email AS delegateEmail,
+                c.title AS courseTitle, c.description AS courseDescription, c.joining_instructions AS joiningInstructions,
+                c.funding_type AS fundingType, c.price_pence AS pricePence,
+                s.start_date AS startDate, s.end_date AS endDate, s.start_time AS startTime, s.end_time AS endTime,
+                l.name AS locationName, l.room_name AS roomName, l.address, l.city, l.postcode,
+                coalesce(l.notes, '') AS locationNotes, coalesce(b.special_requirements, '') AS specialRequirements
+         FROM bookings b
+         JOIN delegates d ON d.id = b.delegate_id
+         JOIN courses c ON c.id = b.course_id
+         JOIN sessions s ON s.id = b.session_id
+         JOIN locations l ON l.id = b.location_id
+         WHERE b.id = ?`,
+      ).bind(id).first<BookingEmailDetails>();
+      if (details) {
+        await sendBookingConfirmation(details);
+        confirmationEmailSent = true;
+      }
+    } catch (emailError) {
+      console.error("Booking succeeded but confirmation email failed.", { bookingId: id, error: emailError });
+    }
+    return Response.json({ booking, confirmationEmailSent }, { status: 201 });
   } catch (error) {
     return Response.json({ code: "BOOKING_CREATE_FAILED", message: error instanceof Error ? error.message : "The booking could not be created." }, { status: 500 });
   }

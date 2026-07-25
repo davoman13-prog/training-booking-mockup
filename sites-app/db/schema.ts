@@ -84,6 +84,7 @@ export const courses = sqliteTable("courses", {
   title: text("title").notNull(),
   category: text("category").notNull(),
   description: text("description").notNull(),
+  joiningInstructions: text("joining_instructions").notNull().default(""),
   fundingType: text("funding_type", { enum: ["funded", "unfunded"] }).notNull(),
   status: text("status", {
     enum: ["open", "awaiting_minimum", "at_risk", "cancelled", "completed"],

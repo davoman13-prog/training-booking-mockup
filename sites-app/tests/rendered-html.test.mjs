@@ -66,6 +66,8 @@ const resetPasswordUrl = new URL("../app/api/auth/reset-password/route.ts", impo
 const emailMigrationUrl = new URL("../drizzle/0006_flowery_iron_man.sql", import.meta.url);
 const verifyEmailPageUrl = new URL("../legacy-src/pages/delegate/VerifyEmailPage.tsx", import.meta.url);
 const forgotPasswordPageUrl = new URL("../legacy-src/pages/delegate/ForgotPasswordPage.tsx", import.meta.url);
+const bookingEmailUrl = new URL("../app/api/bookings/bookingConfirmationEmail.ts", import.meta.url);
+const joiningMigrationUrl = new URL("../drizzle/0007_good_talisman.sql", import.meta.url);
 
 test("catalogue refresh always reads current server data", async () => {
   const hook = await readFile(catalogHookUrl, "utf8");
@@ -378,4 +380,27 @@ test("email verification and password recovery use expiring protected codes", as
   assert.match(login, /EMAIL_NOT_VERIFIED/);
   assert.match(verifyPage, /autoComplete="one-time-code"/);
   assert.match(forgotPage, /This works for delegate and administrator accounts/);
+});
+
+test("successful bookings send complete joining instructions without risking the booking", async () => {
+  const [booking, email, courseForm, confirmation, migration] = await Promise.all([
+    readFile(bookingCreateUrl, "utf8"),
+    readFile(bookingEmailUrl, "utf8"),
+    readFile(courseFormUrl, "utf8"),
+    readFile(bookingConfirmationUrl, "utf8"),
+    readFile(joiningMigrationUrl, "utf8"),
+  ]);
+  assert.match(migration, /joining_instructions/);
+  assert.match(courseForm, /Joining instructions \/ special information/);
+  assert.match(courseForm, /name="joiningInstructions"/);
+  assert.match(email, /Booking reference/);
+  assert.match(email, /Funding \/ price/);
+  assert.match(email, /Joining instructions/);
+  assert.match(email, /Venue information/);
+  assert.match(email, /Your recorded requirements/);
+  assert.match(email, /roomName, details\.locationName, details\.address, details\.city, details\.postcode/);
+  assert.match(email, /escapeHtml/);
+  assert.match(booking, /Booking succeeded but confirmation email failed/);
+  assert.match(booking, /confirmationEmailSent/);
+  assert.match(confirmation, /joining instructions have been emailed to you/);
 });

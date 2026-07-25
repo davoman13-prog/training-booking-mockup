@@ -55,10 +55,10 @@ export default function BookingFormPage({ currentUser }: { currentUser: MockUser
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ courseId: course.id, sessionId: selectedSession.id, specialRequirements, termsAccepted }),
       })
-      const result = await response.json() as { booking?: { id: string }; message?: string }
+      const result = await response.json() as { booking?: { id: string }; confirmationEmailSent?: boolean; message?: string }
       if (!response.ok) throw new Error(result.message ?? 'The booking could not be created.')
       await refresh()
-      navigate(`/delegate/confirmation?courseId=${course.id}&sessionId=${selectedSession.id}&bookingId=${result.booking?.id}`)
+      navigate(`/delegate/confirmation?courseId=${course.id}&sessionId=${selectedSession.id}&bookingId=${result.booking?.id}&emailSent=${result.confirmationEmailSent ? 'yes' : 'no'}`)
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : 'The booking could not be created.')
     } finally {

@@ -4,6 +4,7 @@ export interface CoursePayload {
   title?: string;
   category?: string;
   description?: string;
+  joiningInstructions?: string;
   fundingType?: "funded" | "unfunded";
   status?: "open" | "awaiting_minimum" | "at_risk" | "cancelled" | "completed";
   price?: number | null;
@@ -32,6 +33,7 @@ export function courseValues(payload: CoursePayload) {
     title: payload.title!.trim(),
     category: payload.category!.trim(),
     description: payload.description!.trim(),
+    joiningInstructions: payload.joiningInstructions?.trim() ?? "",
     fundingType: payload.fundingType ?? "funded",
     status: payload.status ?? "open",
     pricePence:
