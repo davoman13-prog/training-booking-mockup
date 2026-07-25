@@ -134,6 +134,13 @@ export interface Certificate {
   downloadLink?: string
 }
 
+export interface WaitingListEntry {
+  id: string
+  delegateId: string
+  courseId: string
+  createdAt: string
+}
+
 export interface AttendanceRecord {
   bookingId: string
   outcome: 'pending' | 'attended' | 'absent'

@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
@@ -9,7 +9,10 @@ import useCatalog from '../../hooks/useCatalog'
 
 export default function CourseDetailPage() {
   const { courseId } = useParams()
-  const { courses, locations, sessions, trainers, isLoading } = useCatalog()
+  const { courses, locations, sessions, trainers, bookings, waitingListEntries, isLoading, refresh } = useCatalog()
+  const [waitingError, setWaitingError] = useState('')
+  const [waitingMessage, setWaitingMessage] = useState('')
+  const [waiting, setWaiting] = useState(false)
   const course = useMemo(() => courses.find((item) => item.id === courseId), [courseId, courses])
 
   if (isLoading) return <p className="rounded-2xl border border-slate-200 bg-white p-8 text-slate-700">Loading the latest course details...</p>
@@ -18,6 +21,24 @@ export default function CourseDetailPage() {
   }
 
   const courseSessions = sessions.filter((session) => session.courseId === course.id)
+  const waitingEntry = waitingListEntries.find((entry) => entry.courseId === course.id)
+  const activeBooking = bookings.some((booking) => booking.courseId === course.id && booking.status !== 'cancelled' && booking.status !== 'completed')
+  const waitingListAvailable = course.status !== 'cancelled' && course.status !== 'completed' && !activeBooking
+
+  async function joinWaitingList() {
+    setWaiting(true); setWaitingError(''); setWaitingMessage('')
+    try {
+      const response = await fetch('/api/waiting-list', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ courseId: course.id }),
+      })
+      const result = await response.json() as { message?: string }
+      if (!response.ok) throw new Error(result.message ?? 'The waiting list could not be updated.')
+      await refresh()
+      setWaitingMessage('You are confirmed on this course waiting list.')
+    } catch (caught) {
+      setWaitingError(caught instanceof Error ? caught.message : 'The waiting list could not be updated.')
+    } finally { setWaiting(false) }
+  }
 
   return (
     <div className="space-y-6">
@@ -96,7 +117,11 @@ export default function CourseDetailPage() {
           })}
         </section>
         <Card>
-          <h2 className="text-lg font-semibold text-slate-900">Course outcomes</h2>
+          <h2 className="text-lg font-semibold text-slate-900">Waiting list</h2>
+          {waitingEntry ? <><p className="mt-3 text-sm font-semibold text-emerald-700">You are confirmed on this course waiting list.</p><Link to="/delegate/waiting-lists"><Button variant="secondary" className="mt-4">Manage my waiting lists</Button></Link></> : waitingListAvailable ? <><p className="mt-3 text-sm text-slate-600">Join if the current dates are full or not suitable. The training team can offer you a future session.</p><Button className="mt-4" disabled={waiting} onClick={() => void joinWaitingList()}>{waiting ? 'Joining...' : 'Join waiting list'}</Button></> : <p className="mt-3 text-sm text-slate-600">{activeBooking ? 'You already have an active booking for this course.' : 'A waiting list is not available for this course.'}</p>}
+          {waitingMessage ? <p className="mt-3 text-sm font-semibold text-emerald-700">{waitingMessage}</p> : null}
+          {waitingError ? <p className="mt-3 text-sm font-semibold text-rose-700">{waitingError}</p> : null}
+          <h2 className="mt-8 text-lg font-semibold text-slate-900">Course outcomes</h2>
           <ul className="mt-4 space-y-2 text-sm text-slate-600">
             {course.outcomes.map((outcome) => (
               <li key={outcome} className="flex items-start gap-3">

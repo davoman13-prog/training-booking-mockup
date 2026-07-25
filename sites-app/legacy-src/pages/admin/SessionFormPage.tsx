@@ -45,7 +45,7 @@ export default function SessionFormPage() {
   const location = useLocation()
   const preselectedCourseId = searchParams.get('courseId') ?? undefined
   const returnedTrainerId = searchParams.get('trainerId') ?? undefined
-  const { courses, locations, sessions, trainers, delegates, bookings, certificates, invoices, attendanceRecords, isLive, isLoading, loadError, refresh } = useCatalog()
+  const { courses, locations, sessions, trainers, delegates, bookings, certificates, invoices, attendanceRecords, waitingListEntries, isLive, isLoading, loadError, refresh } = useCatalog()
   const session = useMemo(() => sessions.find((item) => item.id === sessionId), [sessionId, sessions])
   const editing = Boolean(session)
   const [saved, setSaved] = useState(false)
@@ -168,7 +168,13 @@ export default function SessionFormPage() {
       await refresh()
       setSaved(true)
       if (!editing && result.session?.id) {
-        navigate(`/admin/sessions/${result.session.id}/edit`, { replace: true })
+        const waitingCount = waitingListEntries.filter((entry) => entry.courseId === formState.courseId).length
+        navigate(
+          waitingCount > 0
+            ? `/admin/waiting-lists?courseId=${formState.courseId}&sessionId=${result.session.id}`
+            : `/admin/sessions/${result.session.id}/edit`,
+          { replace: true },
+        )
       }
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : 'The session could not be saved.')

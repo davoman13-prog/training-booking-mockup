@@ -6,7 +6,7 @@ import { isSessionAtRisk } from '../../utils/sessionRules'
 import useCatalog from '../../hooks/useCatalog'
 
 export default function AdminDashboardPage() {
-  const { bookings, courses, delegates, locations, sessions, trainers, isLoading, isLive, loadError } = useCatalog()
+  const { bookings, courses, delegates, locations, sessions, trainers, waitingListEntries, isLoading, isLive, loadError } = useCatalog()
   if (isLoading) return <Card><p className="text-sm font-semibold text-slate-700">Loading the live administration dashboard...</p></Card>
   if (!isLive) return <Card><h1 className="text-xl font-semibold text-slate-950">Dashboard unavailable</h1><p className="mt-2 text-sm text-rose-700">{loadError || 'The live catalogue could not be loaded.'}</p></Card>
 
@@ -39,6 +39,7 @@ export default function AdminDashboardPage() {
       <SummaryLinkCard label="Active trainers" value={trainers.filter((trainer) => trainer.status === 'active').length} detail="Currently selectable trainers" to="/admin/trainers?status=active" />
       <SummaryLinkCard label="Active locations" value={locations.filter((location) => location.isActive).length} detail="Open training venues" to="/admin/locations?status=active" />
       <SummaryLinkCard label="All bookings" value={bookings.length} detail="Live booking records" to="/admin/bookings" />
+      <SummaryLinkCard label="Waiting delegates" value={waitingListEntries.length} detail={`${new Set(waitingListEntries.map((entry) => entry.courseId)).size} courses with demand`} to="/admin/waiting-lists" />
     </div>
     <div className="grid gap-4 lg:grid-cols-3">
       {[
