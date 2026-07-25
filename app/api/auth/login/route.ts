@@ -42,10 +42,10 @@ export async function POST(request: Request) {
     }
 
     const account = await env.DB.prepare(
-      `SELECT d.id, d.first_name, d.last_name, d.email, d.account_status, a.password_hash, a.password_salt, a.failed_attempts, a.locked_until, a.email_verified_at
+      `SELECT d.id, d.first_name, d.last_name, d.email, d.account_status, d.can_login, a.password_hash, a.password_salt, a.failed_attempts, a.locked_until, a.email_verified_at
        FROM delegates d JOIN delegate_auth_accounts a ON a.delegate_id = d.id WHERE d.email = ?`,
     ).bind(email).first<{
-      id: string; first_name: string; last_name: string; email: string; account_status: string;
+      id: string; first_name: string; last_name: string; email: string; account_status: string; can_login: number;
       password_hash: string; password_salt: string; failed_attempts: number; locked_until: string | null; email_verified_at: string | null;
     }>();
     if (!account) return Response.json(genericError, { status: 401 });
@@ -63,7 +63,7 @@ export async function POST(request: Request) {
         .bind(attempts >= MAX_ATTEMPTS ? 0 : attempts, lockedUntil, new Date().toISOString(), account.id).run();
       return Response.json(genericError, { status: 401 });
     }
-    if (account.account_status !== "active") return Response.json({ code: "ACCOUNT_UNAVAILABLE", message: "This account is not currently active." }, { status: 403 });
+    if (account.account_status !== "active" || !account.can_login) return Response.json({ code: "ACCOUNT_UNAVAILABLE", message: "This account is not currently permitted to sign in." }, { status: 403 });
     await env.DB.prepare("UPDATE delegate_auth_accounts SET failed_attempts = 0, locked_until = NULL, updated_at = ? WHERE delegate_id = ?")
       .bind(new Date().toISOString(), account.id).run();
     const session = await createDelegateSession(account.id);

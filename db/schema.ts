@@ -132,6 +132,8 @@ export const delegates = sqliteTable("delegates", {
   accountStatus: text("account_status", {
     enum: ["active", "inactive", "anonymised"],
   }).notNull().default("active"),
+  canLogin: integer("can_login", { mode: "boolean" }).notNull().default(true),
+  canBook: integer("can_book", { mode: "boolean" }).notNull().default(true),
   adminNotes: text("admin_notes").notNull().default(""),
   specialRequirements: text("special_requirements").notNull().default(""),
   ...timestamps,

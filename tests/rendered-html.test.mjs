@@ -74,6 +74,9 @@ const waitingRemoveUrl = new URL("../app/api/waiting-list/[entryId]/route.ts", i
 const waitingBookUrl = new URL("../app/api/waiting-list/book/route.ts", import.meta.url);
 const delegateWaitingPageUrl = new URL("../legacy-src/pages/delegate/WaitingListPage.tsx", import.meta.url);
 const adminWaitingPageUrl = new URL("../legacy-src/pages/admin/WaitingListsPage.tsx", import.meta.url);
+const waitingEmailUrl = new URL("../app/api/waiting-list/waitingListEmail.ts", import.meta.url);
+const delegatePermissionsMigrationUrl = new URL("../drizzle/0009_black_blue_blade.sql", import.meta.url);
+const delegatesPageUrl = new URL("../legacy-src/pages/admin/DelegatesPage.tsx", import.meta.url);
 
 test("catalogue refresh always reads current server data", async () => {
   const hook = await readFile(catalogHookUrl, "utf8");
@@ -469,4 +472,60 @@ test("waiting lists are private, manageable, visible to administrators and conve
   assert.match(sessionForm, /admin\/waiting-lists\?courseId=/);
   assert.match(app, /My Waiting Lists/);
   assert.match(app, /Waiting Lists/);
+});
+
+test("waiting-list changes notify delegates and administrators can manage entries on their behalf", async () => {
+  const [email, join, remove, book, adminPage, delegatePage, coursePage] = await Promise.all([
+    readFile(waitingEmailUrl, "utf8"),
+    readFile(waitingJoinUrl, "utf8"),
+    readFile(waitingRemoveUrl, "utf8"),
+    readFile(waitingBookUrl, "utf8"),
+    readFile(adminWaitingPageUrl, "utf8"),
+    readFile(delegateWaitingPageUrl, "utf8"),
+    readFile(courseDetailUrl, "utf8"),
+  ]);
+  assert.match(email, /Waiting list confirmed:/);
+  assert.match(email, /Waiting list removed:/);
+  assert.match(email, /sendTransactionalEmail/);
+  assert.match(join, /currentAdmin\(request\)/);
+  assert.match(join, /payload\.delegateId/);
+  assert.match(join, /sendWaitingListAdded/);
+  assert.match(remove, /sendWaitingListRemoved/);
+  assert.match(book, /sendWaitingListRemoved/);
+  assert.match(adminPage, /Add a delegate on their behalf/);
+  assert.match(adminPage, /\/api\/waiting-list\/\$\{entryId\}/);
+  assert.match(adminPage, /confirmation email sent/);
+  assert.match(delegatePage, /confirmation email has been sent/);
+  assert.match(coursePage, /confirmation email has been sent/);
+});
+
+test("delegate sign-in and booking permissions are separate and enforced by the server", async () => {
+  const [migration, schema, auth, login, booking, join, allocation, detail, list, route] = await Promise.all([
+    readFile(delegatePermissionsMigrationUrl, "utf8"),
+    readFile(schemaUrl, "utf8"),
+    readFile(authCoreUrl, "utf8"),
+    readFile(authLoginUrl, "utf8"),
+    readFile(bookingCreateUrl, "utf8"),
+    readFile(waitingJoinUrl, "utf8"),
+    readFile(waitingBookUrl, "utf8"),
+    readFile(delegateDetailUrl, "utf8"),
+    readFile(delegatesPageUrl, "utf8"),
+    readFile(delegateRouteUrl, "utf8"),
+  ]);
+  assert.match(migration, /can_login.*DEFAULT true NOT NULL/);
+  assert.match(migration, /can_book.*DEFAULT true NOT NULL/);
+  assert.match(schema, /canLogin: integer\("can_login"/);
+  assert.match(schema, /canBook: integer\("can_book"/);
+  assert.match(auth, /!row\.can_login/);
+  assert.match(auth, /canBook: Boolean\(row\.can_book\)/);
+  assert.match(login, /!account\.can_login/);
+  assert.match(booking, /!delegate\.canBook/);
+  assert.match(join, /!signedInDelegate\.canBook/);
+  assert.match(join, /!targetDelegate\.can_book/);
+  assert.match(allocation, /d\.can_book = 1/);
+  assert.match(detail, /Can sign in/);
+  assert.match(detail, /Can book courses and join waiting lists/);
+  assert.match(list, /Name, email, phone or practice/);
+  assert.match(list, /Blocked/);
+  assert.match(route, /delete\(delegateAuthSessions\)/);
 });
