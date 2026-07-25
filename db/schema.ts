@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 const timestamps = {
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
@@ -206,6 +206,16 @@ export const bookings = sqliteTable("bookings", {
   certificateId: text("certificate_id"),
   ...timestamps,
 });
+
+export const waitingListEntries = sqliteTable("waiting_list_entries", {
+  id: text("id").primaryKey(),
+  delegateId: text("delegate_id").notNull().references(() => delegates.id),
+  courseId: text("course_id").notNull().references(() => courses.id),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("waiting_list_delegate_course_unique").on(table.delegateId, table.courseId),
+]);
 
 export const attendanceRecords = sqliteTable("attendance_records", {
   bookingId: text("booking_id").primaryKey().references(() => bookings.id),

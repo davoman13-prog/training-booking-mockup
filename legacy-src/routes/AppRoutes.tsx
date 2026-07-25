@@ -14,6 +14,7 @@ import TrainingDetailPage from '../pages/delegate/TrainingDetailPage'
 import CertificatesPage from '../pages/delegate/CertificatesPage'
 import InvoicesPage from '../pages/delegate/InvoicesPage'
 import AccountPage from '../pages/delegate/AccountPage'
+import WaitingListPage from '../pages/delegate/WaitingListPage'
 import AdminDashboardPage from '../pages/admin/DashboardPage'
 import ManageCoursesPage from '../pages/admin/ManageCoursesPage'
 import CourseFormPage from '../pages/admin/CourseFormPage'
@@ -33,6 +34,7 @@ import AttendancePage from '../pages/admin/AttendancePage'
 import CertificateManagementPage from '../pages/admin/CertificateManagementPage'
 import InvoiceManagementPage from '../pages/admin/InvoiceManagementPage'
 import ReportsPage from '../pages/admin/ReportsPage'
+import WaitingListsPage from '../pages/admin/WaitingListsPage'
 
 interface AppRoutesProps {
   currentUser: MockUser | null
@@ -64,6 +66,7 @@ export default function AppRoutes({ currentUser, onLogin }: AppRoutesProps) {
           <Route path="delegate/confirmation" element={<BookingConfirmationPage />} />
           <Route path="delegate/bookings/:bookingId" element={<TrainingDetailPage currentUser={currentUser} />} />
           <Route path="delegate/bookings" element={<MyBookingsPage currentUser={currentUser} />} />
+          <Route path="delegate/waiting-lists" element={<WaitingListPage />} />
           <Route path="delegate/certificates/:certificateId" element={<Navigate to="/delegate/certificates" replace />} />
           <Route path="delegate/certificates" element={<CertificatesPage currentUser={currentUser} />} />
           <Route path="delegate/invoices/:invoiceId" element={<Navigate to="/delegate/invoices" replace />} />
@@ -93,6 +96,7 @@ export default function AppRoutes({ currentUser, onLogin }: AppRoutesProps) {
           <Route path="admin/delegates/:delegateId" element={<DelegateDetailPage />} />
           <Route path="admin/bookings" element={<ViewBookingsPage />} />
           <Route path="admin/bookings/:bookingId" element={<BookingDetailPage />} />
+          <Route path="admin/waiting-lists" element={<WaitingListsPage />} />
           <Route path="admin/attendance" element={<AttendancePage />} />
           <Route path="admin/certificates" element={<CertificateManagementPage />} />
           <Route path="admin/invoices" element={<InvoiceManagementPage />} />

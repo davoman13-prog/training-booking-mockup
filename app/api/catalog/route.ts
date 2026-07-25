@@ -9,13 +9,14 @@ import {
   attendanceRecords,
   invoices,
   certificates,
+  waitingListEntries,
 } from "../../../db/schema";
 import { currentAdmin, currentDelegate } from "../auth/auth";
 
 export async function GET(request: Request) {
   try {
     const db = getDb();
-    const [courseRows, locationRows, trainerRows, sessionRows, delegateRows, bookingRows, attendanceRows, invoiceRows, certificateRows] = await Promise.all([
+    const [courseRows, locationRows, trainerRows, sessionRows, delegateRows, bookingRows, attendanceRows, invoiceRows, certificateRows, waitingRows] = await Promise.all([
       db.select().from(courses),
       db.select().from(locations),
       db.select().from(trainers),
@@ -25,6 +26,7 @@ export async function GET(request: Request) {
       db.select().from(attendanceRecords),
       db.select().from(invoices),
       db.select().from(certificates),
+      db.select().from(waitingListEntries),
     ]);
 
     const admin = await currentAdmin(request);
@@ -32,6 +34,7 @@ export async function GET(request: Request) {
     const visibleBookings = admin ? bookingRows : delegate ? bookingRows.filter((booking) => booking.delegateId === delegate.id) : [];
     const visibleDelegates = admin ? delegateRows : delegate ? delegateRows.filter((row) => row.id === delegate.id) : [];
     const visibleBookingIds = new Set(visibleBookings.map((booking) => booking.id));
+    const visibleWaitingRows = admin ? waitingRows : delegate ? waitingRows.filter((entry) => entry.delegateId === delegate.id) : [];
 
     return Response.json({
       courses: courseRows.map((course) => ({
@@ -70,6 +73,7 @@ export async function GET(request: Request) {
         ...certificate,
         downloadLink: certificate.fileKey ?? undefined,
       })),
+      waitingListEntries: visibleWaitingRows,
     });
   } catch (error) {
     console.error("Catalogue load failed.", error);

@@ -68,6 +68,12 @@ const verifyEmailPageUrl = new URL("../legacy-src/pages/delegate/VerifyEmailPage
 const forgotPasswordPageUrl = new URL("../legacy-src/pages/delegate/ForgotPasswordPage.tsx", import.meta.url);
 const bookingEmailUrl = new URL("../app/api/bookings/bookingConfirmationEmail.ts", import.meta.url);
 const joiningMigrationUrl = new URL("../drizzle/0007_good_talisman.sql", import.meta.url);
+const waitingMigrationUrl = new URL("../drizzle/0008_familiar_moonstone.sql", import.meta.url);
+const waitingJoinUrl = new URL("../app/api/waiting-list/route.ts", import.meta.url);
+const waitingRemoveUrl = new URL("../app/api/waiting-list/[entryId]/route.ts", import.meta.url);
+const waitingBookUrl = new URL("../app/api/waiting-list/book/route.ts", import.meta.url);
+const delegateWaitingPageUrl = new URL("../legacy-src/pages/delegate/WaitingListPage.tsx", import.meta.url);
+const adminWaitingPageUrl = new URL("../legacy-src/pages/admin/WaitingListsPage.tsx", import.meta.url);
 
 test("catalogue refresh always reads current server data", async () => {
   const hook = await readFile(catalogHookUrl, "utf8");
@@ -427,4 +433,40 @@ test("delegates cannot book expired or cancelled training and receive cancellati
   assert.match(bookingCancel, /sendBookingCancellation/);
   assert.match(bookingCancel, /Booking cancellation succeeded but confirmation email failed/);
   assert.match(bookingCancel, /cancellationEmailSent/);
+});
+
+test("waiting lists are private, manageable, visible to administrators and convert safely into bookings", async () => {
+  const [migration, catalog, join, remove, book, delegatePage, adminPage, coursePage, sessionForm, app] = await Promise.all([
+    readFile(waitingMigrationUrl, "utf8"),
+    readFile(catalogRouteUrl, "utf8"),
+    readFile(waitingJoinUrl, "utf8"),
+    readFile(waitingRemoveUrl, "utf8"),
+    readFile(waitingBookUrl, "utf8"),
+    readFile(delegateWaitingPageUrl, "utf8"),
+    readFile(adminWaitingPageUrl, "utf8"),
+    readFile(courseDetailUrl, "utf8"),
+    readFile(sessionFormUrl, "utf8"),
+    readFile(appUrl, "utf8"),
+  ]);
+  assert.match(migration, /CREATE TABLE `waiting_list_entries`/);
+  assert.match(migration, /waiting_list_delegate_course_unique/);
+  assert.match(catalog, /visibleWaitingRows = admin \? waitingRows : delegate \? waitingRows\.filter/);
+  assert.match(join, /currentDelegate\(request\)/);
+  assert.match(join, /ALREADY_BOOKED/);
+  assert.match(join, /course\.status === "cancelled".*course\.status === "completed"/s);
+  assert.match(remove, /currentAdmin\(request\).*currentDelegate\(request\)/s);
+  assert.match(remove, /entry\.delegate_id !== delegate!\.id/);
+  assert.match(book, /requireAdmin\(request\)/);
+  assert.match(book, /available_seats = available_seats - 1/);
+  assert.match(book, /DELETE FROM waiting_list_entries/);
+  assert.match(book, /sendBookingConfirmation/);
+  assert.match(book, /INSERT INTO attendance_records/);
+  assert.match(delegatePage, /Leave waiting list/);
+  assert.match(adminPage, /Course demand/);
+  assert.match(adminPage, /Book selected delegates/);
+  assert.match(coursePage, /Join waiting list/);
+  assert.match(sessionForm, /waitingCount > 0/);
+  assert.match(sessionForm, /admin\/waiting-lists\?courseId=/);
+  assert.match(app, /My Waiting Lists/);
+  assert.match(app, /Waiting Lists/);
 });
