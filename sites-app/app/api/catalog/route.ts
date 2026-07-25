@@ -71,7 +71,7 @@ export async function GET(request: Request) {
       })),
       certificates: certificateRows.filter((certificate) => visibleBookingIds.has(certificate.bookingId)).map((certificate) => ({
         ...certificate,
-        downloadLink: certificate.fileKey ?? undefined,
+        downloadLink: certificate.fileKey && ["issued", "available"].includes(certificate.status) ? `/api/certificates/${certificate.id}/download` : undefined,
       })),
       waitingListEntries: visibleWaitingRows,
     });
