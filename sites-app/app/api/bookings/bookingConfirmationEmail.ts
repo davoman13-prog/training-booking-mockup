@@ -76,3 +76,25 @@ export async function sendBookingConfirmation(details: BookingEmailDetails) {
   const content = bookingConfirmationContent(details);
   await sendTransactionalEmail(details.delegateEmail, content.subject, content.text, content.html);
 }
+
+export function bookingCancellationContent(details: BookingEmailDetails) {
+  const date = dateText(details);
+  const time = `${details.startTime}–${details.endTime}`;
+  return {
+    subject: `Booking cancelled: ${details.courseTitle}`,
+    text: [
+      `Hello ${details.delegateName},`,
+      `Your booking for ${details.courseTitle} has been cancelled.`,
+      `Booking reference: ${details.bookingId}`,
+      `Date: ${date}`,
+      `Time: ${time}`,
+      "Your place has been released. You do not need to take any further action.",
+    ].join("\n\n"),
+    html: `<div style="font-family:Arial,sans-serif;max-width:680px;margin:auto;color:#0f172a"><div style="background:#475569;color:white;padding:24px;border-radius:12px 12px 0 0"><h1 style="margin:0;font-size:24px">Your booking has been cancelled</h1></div><div style="border:1px solid #cbd5e1;padding:24px;border-radius:0 0 12px 12px"><p>Hello ${escapeHtml(details.delegateName)},</p><p>Your booking for <strong>${escapeHtml(details.courseTitle)}</strong> has been cancelled.</p><table style="width:100%;border-collapse:collapse;background:#f8fafc"><tr><td style="padding:8px 12px;font-weight:700">Booking reference</td><td style="padding:8px 12px">${escapeHtml(details.bookingId)}</td></tr><tr><td style="padding:8px 12px;font-weight:700">Date</td><td style="padding:8px 12px">${escapeHtml(date)}</td></tr><tr><td style="padding:8px 12px;font-weight:700">Time</td><td style="padding:8px 12px">${escapeHtml(time)}</td></tr></table><p style="margin-top:24px">Your place has been released. You do not need to take any further action.</p></div></div>`,
+  };
+}
+
+export async function sendBookingCancellation(details: BookingEmailDetails) {
+  const content = bookingCancellationContent(details);
+  await sendTransactionalEmail(details.delegateEmail, content.subject, content.text, content.html);
+}

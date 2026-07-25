@@ -58,7 +58,7 @@ export default function CourseDetailPage() {
           <h2 className="text-xl font-semibold text-slate-950">Choose a session</h2>
           {courseSessions.map((session) => {
             const location = locations.find((item) => item.id === session.locationId)
-            const unavailable = !canBookSession(session)
+            const unavailable = !canBookSession(session, course)
             const availabilityMessage = delegateSessionAvailabilityMessage(session, course)
 
             return (

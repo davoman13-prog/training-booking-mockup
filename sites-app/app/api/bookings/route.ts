@@ -21,13 +21,19 @@ export async function POST(request: Request) {
     const delegateId = delegate.id;
 
     const session = await env.DB.prepare(
-      `SELECT s.id, s.course_id, s.location_id, s.status, s.available_seats,
-              c.funding_type, c.price_pence
+      `SELECT s.id, s.course_id, s.location_id, s.status, s.start_date, s.available_seats,
+              c.status AS course_status, c.funding_type, c.price_pence
        FROM sessions s JOIN courses c ON c.id = s.course_id
        WHERE s.id = ?`,
-    ).bind(payload.sessionId).first<{ id: string; course_id: string; location_id: string; status: string; available_seats: number; funding_type: string; price_pence: number | null }>();
+    ).bind(payload.sessionId).first<{ id: string; course_id: string; location_id: string; status: string; start_date: string; available_seats: number; course_status: string; funding_type: string; price_pence: number | null }>();
     if (!session || session.course_id !== payload.courseId) return Response.json({ code: "SESSION_NOT_FOUND", message: "The selected session was not found for this course." }, { status: 404 });
+    if (session.course_status === "cancelled" || session.course_status === "completed") {
+      return Response.json({ code: "COURSE_UNAVAILABLE", message: "This course is cancelled or completed and cannot accept bookings." }, { status: 409 });
+    }
     if (session.status !== "scheduled") return Response.json({ code: "SESSION_UNAVAILABLE", message: "Only scheduled sessions can accept bookings." }, { status: 409 });
+    if (session.start_date < new Date().toISOString().slice(0, 10)) {
+      return Response.json({ code: "SESSION_PASSED", message: "This session date has passed and cannot accept bookings." }, { status: 409 });
+    }
     if (session.available_seats < 1) return Response.json({ code: "SESSION_FULL", message: "This session is full." }, { status: 409 });
 
     const duplicate = await env.DB.prepare(
@@ -42,7 +48,13 @@ export async function POST(request: Request) {
         `INSERT INTO bookings
         (id, delegate_id, course_id, session_id, location_id, booking_date, status, payment_required, terms_accepted, special_requirements, attendance_marked, created_at, updated_at)
         SELECT ?, ?, ?, ?, ?, ?, 'confirmed', ?, 1, ?, 0, ?, ?
-        FROM sessions WHERE id = ? AND status = 'scheduled' AND available_seats > 0`,
+        FROM sessions
+        WHERE id = ? AND status = 'scheduled' AND start_date >= date('now') AND available_seats > 0
+          AND EXISTS (
+            SELECT 1 FROM courses
+            WHERE courses.id = sessions.course_id
+              AND courses.status NOT IN ('cancelled', 'completed')
+          )`,
       ).bind(id, delegateId, payload.courseId, payload.sessionId, session.location_id, now.slice(0, 10), session.funding_type === "unfunded" ? 1 : 0, payload.specialRequirements?.trim() || null, now, now, payload.sessionId),
       env.DB.prepare("UPDATE sessions SET attendee_count = attendee_count + 1, available_seats = available_seats - 1, updated_at = ? WHERE id = ? AND available_seats > 0 AND EXISTS (SELECT 1 FROM bookings WHERE id = ?)").bind(now, payload.sessionId, id),
       env.DB.prepare(

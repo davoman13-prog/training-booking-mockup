@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import { currentDelegate } from "../../../auth/auth";
+import { BookingEmailDetails, sendBookingCancellation } from "../../bookingConfirmationEmail";
 
 interface RouteContext { params: Promise<{ bookingId: string }> }
 
@@ -24,7 +25,31 @@ export async function POST(request: Request, context: RouteContext) {
       env.DB.prepare("UPDATE sessions SET attendee_count = MAX(0, attendee_count - 1), available_seats = available_seats + 1, updated_at = ? WHERE id = ?").bind(now, booking.session_id),
     ]);
     const updated = await env.DB.prepare("SELECT * FROM bookings WHERE id = ?").bind(bookingId).first();
-    return Response.json({ booking: updated });
+    let cancellationEmailSent = false;
+    try {
+      const details = await env.DB.prepare(
+        `SELECT b.id AS bookingId,
+                trim(d.first_name || ' ' || d.last_name) AS delegateName, d.email AS delegateEmail,
+                c.title AS courseTitle, c.description AS courseDescription, c.joining_instructions AS joiningInstructions,
+                c.funding_type AS fundingType, c.price_pence AS pricePence,
+                s.start_date AS startDate, s.end_date AS endDate, s.start_time AS startTime, s.end_time AS endTime,
+                l.name AS locationName, l.room_name AS roomName, l.address, l.city, l.postcode,
+                coalesce(l.notes, '') AS locationNotes, coalesce(b.special_requirements, '') AS specialRequirements
+         FROM bookings b
+         JOIN delegates d ON d.id = b.delegate_id
+         JOIN courses c ON c.id = b.course_id
+         JOIN sessions s ON s.id = b.session_id
+         JOIN locations l ON l.id = b.location_id
+         WHERE b.id = ?`,
+      ).bind(bookingId).first<BookingEmailDetails>();
+      if (details) {
+        await sendBookingCancellation(details);
+        cancellationEmailSent = true;
+      }
+    } catch (emailError) {
+      console.error("Booking cancellation succeeded but confirmation email failed.", { bookingId, error: emailError });
+    }
+    return Response.json({ booking: updated, cancellationEmailSent });
   } catch (error) {
     return Response.json({ code: "BOOKING_CANCEL_FAILED", message: error instanceof Error ? error.message : "The booking could not be cancelled." }, { status: 500 });
   }
