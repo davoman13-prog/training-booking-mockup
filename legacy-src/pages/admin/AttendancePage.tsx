@@ -9,13 +9,14 @@ import { formatDate } from '../../utils/formatters'
 import useCatalog from '../../hooks/useCatalog'
 
 export default function AttendancePage() {
-  const { attendanceRecords, bookings, courses, delegates, locations, sessions, trainers, refresh, isLoading } = useCatalog()
+  const { attendanceRecords, bookings, certificates, courses, delegates, locations, sessions, trainers, refresh, isLoading } = useCatalog()
   const [search, setSearch] = useState('')
   const [outcome, setOutcome] = useState('all')
   const [updating, setUpdating] = useState('')
   const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
 
-  const rows = useMemo(() => bookings.filter((booking) => booking.status !== 'cancelled').filter((booking) => {
+  const rows = useMemo(() => bookings.filter((booking) => booking.status !== 'cancelled' && sessions.find((session) => session.id === booking.sessionId)?.status === 'completed').filter((booking) => {
     const delegate = delegates.find((item) => item.id === booking.delegateId)
     const course = courses.find((item) => item.id === booking.courseId)
     const session = sessions.find((item) => item.id === booking.sessionId)
@@ -26,7 +27,7 @@ export default function AttendancePage() {
   }), [attendanceRecords, bookings, courses, delegates, outcome, search, sessions])
 
   async function updateAttendance(bookingId: string, nextOutcome: string) {
-    setUpdating(bookingId); setError('')
+    setUpdating(bookingId); setError(''); setMessage('')
     try {
       const response = await fetch(`/api/attendance/${bookingId}`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ outcome: nextOutcome }),
@@ -38,6 +39,18 @@ export default function AttendancePage() {
     finally { setUpdating('') }
   }
 
+  async function issueCertificate(certificateId: string) {
+    setUpdating(certificateId); setError(''); setMessage('')
+    try {
+      const response = await fetch(`/api/certificates/${certificateId}/issue`, { method: 'POST' })
+      const result = await response.json() as { emailSent?: boolean; message?: string }
+      if (!response.ok) throw new Error(result.message ?? 'The certificate could not be issued.')
+      await refresh()
+      setMessage(result.emailSent ? 'Certificate generated, stored and emailed to the delegate.' : 'Certificate generated and stored, but the email could not be sent.')
+    } catch (caught) { setError(caught instanceof Error ? caught.message : 'The certificate could not be issued.') }
+    finally { setUpdating('') }
+  }
+
   if (isLoading) return <Card><p className="text-sm text-slate-700">Loading live attendance records...</p></Card>
   return <div className="space-y-6">
     <div className="rounded-2xl border border-cyan-100 bg-white p-6 shadow-sm">
@@ -46,13 +59,14 @@ export default function AttendancePage() {
       <p className="mt-2 text-sm text-slate-600">Changes are saved immediately to the booking’s attendance record.</p>
     </div>
     {error ? <p className="rounded-xl bg-rose-50 p-3 text-sm font-semibold text-rose-800">{error}</p> : null}
+    {message ? <p className="rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-800">{message}</p> : null}
     <Card><div className="grid gap-4 md:grid-cols-[2fr_1fr]">
       <div><label className="text-sm font-semibold">Search</label><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Delegate, booking, course or date" /></div>
       <div><label className="text-sm font-semibold">Attendance outcome</label><Select value={outcome} onChange={(event) => setOutcome(event.target.value)}>
         <option value="all">All outcomes</option><option value="pending">Pending</option><option value="attended">Attended</option><option value="absent">Absent</option>
       </Select></div>
     </div></Card>
-    {rows.length ? <Table headers={['Delegate', 'Course / session', 'Location / trainer', 'Booking', 'Attendance']}>
+    {rows.length ? <Table headers={['Delegate', 'Course / session', 'Location / trainer', 'Booking', 'Attendance', 'Certificate']}>
       {rows.map((booking) => {
         const delegate = delegates.find((item) => item.id === booking.delegateId)
         const course = courses.find((item) => item.id === booking.courseId)
@@ -60,6 +74,7 @@ export default function AttendancePage() {
         const location = locations.find((item) => item.id === booking.locationId)
         const trainer = trainers.find((item) => item.id === session?.trainerId)
         const record = attendanceRecords.find((item) => item.bookingId === booking.id)
+        const certificate = booking.certificateId ? certificates.find((item) => item.id === booking.certificateId) : undefined
         const currentOutcome = record?.outcome ?? (booking.attendanceMarked ? 'attended' : 'pending')
         return <tr key={booking.id}>
           <td className="px-4 py-4 text-sm"><Link to={`/admin/delegates/${delegate?.id}`} className="font-semibold text-cyan-800">{delegate?.name}</Link><p className="mt-1 text-xs text-slate-500">{delegate?.email}</p></td>
@@ -72,6 +87,7 @@ export default function AttendancePage() {
               <option value="pending">Pending</option><option value="attended">Attended</option><option value="absent">Absent</option>
             </Select>
           </div></td>
+          <td className="px-4 py-4 text-sm">{currentOutcome === 'attended' && certificate ? <div className="flex flex-col gap-2"><Badge label={certificate.status} variant={certificate.status === 'issued' || certificate.status === 'available' ? 'success' : 'warning'} />{certificate.downloadLink ? <a className="font-semibold text-cyan-800" href={certificate.downloadLink}>Download PDF</a> : <button type="button" className="text-left font-semibold text-cyan-800" disabled={updating === certificate.id} onClick={() => void issueCertificate(certificate.id)}>{updating === certificate.id ? 'Issuing...' : 'Issue and email PDF'}</button>}</div> : <span className="text-slate-500">Mark attended first</span>}</td>
         </tr>
       })}
     </Table> : <Card><p className="text-sm font-semibold text-slate-900">No attendance records match these filters.</p></Card>}

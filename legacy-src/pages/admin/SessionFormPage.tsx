@@ -51,6 +51,8 @@ export default function SessionFormPage() {
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState('')
   const [removeError, setRemoveError] = useState('')
+  const [attendanceUpdating, setAttendanceUpdating] = useState('')
+  const [certificateMessage, setCertificateMessage] = useState('')
   const [confirmingRemove, setConfirmingRemove] = useState(false)
   const capacity = session ? session.attendeeCount + session.availableSeats : 0
   const [formState, setFormState] = useState<SessionFormState>(() => {
@@ -196,6 +198,30 @@ export default function SessionFormPage() {
     } catch (error) {
       setRemoveError(error instanceof Error ? error.message : 'The session could not be removed.')
     }
+  }
+
+  async function updateAttendance(bookingId: string, outcome: string) {
+    setAttendanceUpdating(bookingId); setSaveError(''); setCertificateMessage('')
+    try {
+      const response = await fetch(`/api/attendance/${bookingId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ outcome }) })
+      const result = await response.json() as { message?: string }
+      if (!response.ok) throw new Error(result.message ?? 'Attendance could not be updated.')
+      await refresh()
+    } catch (caught) { setSaveError(caught instanceof Error ? caught.message : 'Attendance could not be updated.') }
+    finally { setAttendanceUpdating('') }
+  }
+
+  async function issueSessionCertificates() {
+    if (!session) return
+    setAttendanceUpdating('certificates'); setSaveError(''); setCertificateMessage('')
+    try {
+      const response = await fetch(`/api/sessions/${session.id}/certificates`, { method: 'POST' })
+      const result = await response.json() as { issued?: number; emailsSent?: number; failures?: string[]; message?: string }
+      if (!response.ok) throw new Error(result.message ?? 'Certificates could not be issued.')
+      await refresh()
+      setCertificateMessage(`${result.issued ?? 0} certificate${result.issued === 1 ? '' : 's'} generated; ${result.emailsSent ?? 0} emailed.${result.failures?.length ? ` ${result.failures.length} failed.` : ''}`)
+    } catch (caught) { setSaveError(caught instanceof Error ? caught.message : 'Certificates could not be issued.') }
+    finally { setAttendanceUpdating('') }
   }
 
   function openAddTrainer() {
@@ -364,6 +390,8 @@ export default function SessionFormPage() {
                 <Button variant="secondary">Open delegates view</Button>
               </Link>
             </div>
+            {session.status === 'completed' ? <div className="mt-4 flex flex-wrap items-center gap-3"><Button type="button" disabled={attendanceUpdating === 'certificates' || !sessionBookings.some((booking) => attendanceRecords.find((item) => item.bookingId === booking.id)?.outcome === 'attended')} onClick={() => void issueSessionCertificates()}>{attendanceUpdating === 'certificates' ? 'Generating certificates...' : 'Issue and email attended certificates'}</Button><p className="text-sm text-slate-600">PDF certificates are created only for delegates marked attended.</p></div> : <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-800">Mark this session completed before recording final attendance or issuing certificates.</p>}
+            {certificateMessage ? <p className="mt-4 rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-800">{certificateMessage}</p> : null}
             <div className="mt-5">
               {sessionBookings.length ? (
                 <Table headers={['Delegate', 'Email', 'Phone', 'Practice', 'Manager', 'Booking', 'Booking status', 'Attendance', 'Invoice', 'Certificate']}>
@@ -382,9 +410,9 @@ export default function SessionFormPage() {
                         <td className="px-4 py-4 text-sm text-slate-700">{delegate?.managerName}<p className="mt-1 text-xs text-slate-500">{delegate?.managerEmail}</p></td>
                         <td className="px-4 py-4 text-sm"><Link to={`/admin/bookings/${booking.id}`} className="font-semibold text-cyan-800 hover:text-cyan-950">{booking.id}</Link></td>
                         <td className="px-4 py-4 text-sm"><Badge label={booking.status} variant={booking.status === 'cancelled' ? 'danger' : booking.status === 'pending' ? 'warning' : 'success'} /></td>
-                        <td className="px-4 py-4 text-sm"><Badge label={attendance?.outcome ?? 'pending'} variant={attendance?.outcome === 'attended' ? 'success' : attendance?.outcome === 'absent' ? 'danger' : 'warning'} /></td>
+                        <td className="px-4 py-4 text-sm"><div className="flex min-w-40 flex-col gap-2"><Badge label={attendance?.outcome ?? 'pending'} variant={attendance?.outcome === 'attended' ? 'success' : attendance?.outcome === 'absent' ? 'danger' : 'warning'} /><Select value={attendance?.outcome ?? 'pending'} disabled={session.status !== 'completed' || attendanceUpdating === booking.id} onChange={(event) => void updateAttendance(booking.id, event.target.value)}><option value="pending">Pending</option><option value="attended">Attended</option><option value="absent">Absent</option></Select></div></td>
                         <td className="px-4 py-4 text-sm text-slate-700">{invoice ? invoice.status.replace('_', ' ') : 'not required'}</td>
-                        <td className="px-4 py-4 text-sm text-slate-700">{certificate?.status ?? 'pending'}</td>
+                        <td className="px-4 py-4 text-sm text-slate-700">{certificate?.downloadLink ? <a className="font-semibold text-cyan-800" href={certificate.downloadLink}>Download PDF</a> : certificate?.status ?? 'pending'}</td>
                       </tr>
                     )
                   })}

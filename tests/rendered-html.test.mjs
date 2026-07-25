@@ -77,6 +77,12 @@ const adminWaitingPageUrl = new URL("../legacy-src/pages/admin/WaitingListsPage.
 const waitingEmailUrl = new URL("../app/api/waiting-list/waitingListEmail.ts", import.meta.url);
 const delegatePermissionsMigrationUrl = new URL("../drizzle/0009_black_blue_blade.sql", import.meta.url);
 const delegatesPageUrl = new URL("../legacy-src/pages/admin/DelegatesPage.tsx", import.meta.url);
+const certificatePdfUrl = new URL("../app/api/certificates/certificatePdf.ts", import.meta.url);
+const certificateIssueUrl = new URL("../app/api/certificates/issueCertificate.ts", import.meta.url);
+const certificateIssueRouteUrl = new URL("../app/api/certificates/[certificateId]/issue/route.ts", import.meta.url);
+const certificateDownloadUrl = new URL("../app/api/certificates/[certificateId]/download/route.ts", import.meta.url);
+const sessionCertificatesUrl = new URL("../app/api/sessions/[sessionId]/certificates/route.ts", import.meta.url);
+const attendancePageUrl = new URL("../legacy-src/pages/admin/AttendancePage.tsx", import.meta.url);
 
 test("catalogue refresh always reads current server data", async () => {
   const hook = await readFile(catalogHookUrl, "utf8");
@@ -528,4 +534,46 @@ test("delegate sign-in and booking permissions are separate and enforced by the 
   assert.match(list, /Name, email, phone or practice/);
   assert.match(list, /Blocked/);
   assert.match(route, /delete\(delegateAuthSessions\)/);
+});
+
+test("completed attendance produces secure stored PDF certificates and email attachments", async () => {
+  const [pdf, issue, issueRoute, download, batch, attendanceRoute, attendancePage, sessionPage, delegateCertificates, trainingDetail, catalog, email] = await Promise.all([
+    readFile(certificatePdfUrl, "utf8"),
+    readFile(certificateIssueUrl, "utf8"),
+    readFile(certificateIssueRouteUrl, "utf8"),
+    readFile(certificateDownloadUrl, "utf8"),
+    readFile(sessionCertificatesUrl, "utf8"),
+    readFile(attendanceRouteUrl, "utf8"),
+    readFile(attendancePageUrl, "utf8"),
+    readFile(sessionFormUrl, "utf8"),
+    readFile(certificatesUrl, "utf8"),
+    readFile(trainingDetailUrl, "utf8"),
+    readFile(catalogRouteUrl, "utf8"),
+    readFile(emailCodeUrl, "utf8"),
+  ]);
+  assert.match(pdf, /PDFDocument\.create/);
+  assert.match(pdf, /CERTIFICATE/);
+  assert.match(pdf, /OF ATTENDANCE/);
+  assert.match(pdf, /delegateName/);
+  assert.match(pdf, /courseTitle/);
+  assert.match(pdf, /Certificate reference/);
+  assert.match(issue, /FILES: R2Bucket/);
+  assert.match(issue, /sendTransactionalEmail/);
+  assert.match(issue, /attachment/);
+  assert.match(issue, /emailed_at/);
+  assert.match(issueRoute, /requireAdmin/);
+  assert.match(download, /currentAdmin\(request\)/);
+  assert.match(download, /currentDelegate\(request\)/);
+  assert.match(download, /certificate\.delegate_id !== delegate!\.id/);
+  assert.match(download, /Content-Type.*application\/pdf/s);
+  assert.match(batch, /s\.status|session\.status !== "completed"/);
+  assert.match(batch, /issueCertificate/);
+  assert.match(attendanceRoute, /session_status !== "completed"/);
+  assert.match(attendancePage, /Issue and email PDF/);
+  assert.match(sessionPage, /Issue and email attended certificates/);
+  assert.match(sessionPage, /updateAttendance/);
+  assert.match(delegateCertificates, /Download certificate/);
+  assert.match(trainingDetail, /Download certificate PDF/);
+  assert.match(catalog, /\/api\/certificates\/\$\{certificate\.id\}\/download/);
+  assert.match(email, /attachment: attachments/);
 });

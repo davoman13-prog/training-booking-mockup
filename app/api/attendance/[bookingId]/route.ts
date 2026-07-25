@@ -13,9 +13,13 @@ export async function PUT(request: Request, context: RouteContext) {
       return Response.json({ code: "INVALID_ATTENDANCE", message: "Choose attended, absent or pending." }, { status: 400 });
     }
     const booking = await env.DB.prepare(
-      "SELECT id, delegate_id, course_id, certificate_id FROM bookings WHERE id = ?",
-    ).bind(bookingId).first<{ id: string; delegate_id: string; course_id: string; certificate_id: string | null }>();
+      `SELECT b.id, b.delegate_id, b.course_id, b.certificate_id, s.status AS session_status
+       FROM bookings b JOIN sessions s ON s.id = b.session_id WHERE b.id = ?`,
+    ).bind(bookingId).first<{ id: string; delegate_id: string; course_id: string; certificate_id: string | null; session_status: string }>();
     if (!booking) return Response.json({ code: "BOOKING_NOT_FOUND", message: "The booking was not found." }, { status: 404 });
+    if (payload.outcome !== "pending" && booking.session_status !== "completed") {
+      return Response.json({ code: "SESSION_NOT_COMPLETED", message: "Mark the session completed before recording attended or absent." }, { status: 409 });
+    }
     const now = new Date().toISOString();
     const marked = payload.outcome !== "pending";
     const statements = [

@@ -27,7 +27,7 @@ function generateCode() {
   return value.toString().padStart(6, "0");
 }
 
-export async function sendTransactionalEmail(to: string, subject: string, text: string, html: string) {
+export async function sendTransactionalEmail(to: string, subject: string, text: string, html: string, attachments?: Array<{ name: string; content: string }>) {
   const config = configuration();
   if (!config.apiKey || !config.fromEmail) throw new Error("Email delivery is not configured.");
   const response = await fetch("https://api.brevo.com/v3/smtp/email", {
@@ -39,6 +39,7 @@ export async function sendTransactionalEmail(to: string, subject: string, text: 
       subject,
       textContent: text,
       htmlContent: html,
+      attachment: attachments,
     }),
   });
   if (!response.ok) {

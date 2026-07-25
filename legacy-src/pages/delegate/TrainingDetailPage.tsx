@@ -124,7 +124,7 @@ export default function TrainingDetailPage({ currentUser }: { currentUser: MockU
           {booking.certificateId ? (
             <div className="mt-4 space-y-3 text-sm text-slate-600">
               <p>Reference: <span className="font-semibold text-slate-900">{booking.certificateId}</span></p>
-              <p>The certificate record is linked to this live booking.</p>
+              {certificate?.downloadLink ? <a href={certificate.downloadLink} className="inline-block font-semibold text-cyan-800">Download certificate PDF</a> : <p>The certificate record is linked to this live booking and is awaiting issue.</p>}
             </div>
           ) : (
             <p className="mt-4 text-sm text-slate-600">Certificate status will appear after completed attendance.</p>
