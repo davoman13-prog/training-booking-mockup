@@ -31,10 +31,10 @@ export default function CourseDetailPage() {
       const response = await fetch('/api/waiting-list', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ courseId: course.id }),
       })
-      const result = await response.json() as { message?: string }
+      const result = await response.json() as { emailSent?: boolean; message?: string }
       if (!response.ok) throw new Error(result.message ?? 'The waiting list could not be updated.')
       await refresh()
-      setWaitingMessage('You are confirmed on this course waiting list.')
+      setWaitingMessage(result.emailSent ? 'You are confirmed on this course waiting list and a confirmation email has been sent.' : 'You are confirmed on this course waiting list, but the confirmation email could not be sent.')
     } catch (caught) {
       setWaitingError(caught instanceof Error ? caught.message : 'The waiting list could not be updated.')
     } finally { setWaiting(false) }

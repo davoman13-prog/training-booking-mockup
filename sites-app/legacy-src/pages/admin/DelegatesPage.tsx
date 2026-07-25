@@ -31,7 +31,7 @@ export default function DelegatesPage() {
       </div>
       <p className="mt-4 text-sm font-semibold text-slate-900">{rows.length} result{rows.length === 1 ? '' : 's'}</p>
     </Card>
-    <Table headers={['Delegate', 'Practice', 'Manager', 'Bookings', 'Upcoming', 'Status']}>
+    <Table headers={['Delegate', 'Practice', 'Manager', 'Bookings', 'Upcoming', 'Sign in', 'Booking', 'Status']}>
       {rows.map((delegate) => {
         const delegateBookings = bookings.filter((booking) => booking.delegateId === delegate.id)
         const upcoming = delegateBookings.filter((booking) => booking.status !== 'cancelled' && sessions.find((session) => session.id === booking.sessionId)?.status === 'scheduled').length
@@ -41,6 +41,8 @@ export default function DelegatesPage() {
           <td className="px-4 py-4 text-sm text-slate-700">{delegate.managerName}<p className="mt-1 text-xs text-slate-500">{delegate.managerEmail}</p></td>
           <td className="px-4 py-4 text-sm text-slate-700">{delegateBookings.length}</td>
           <td className="px-4 py-4 text-sm text-slate-700">{upcoming}</td>
+          <td className="px-4 py-4 text-sm"><Badge label={delegate.canLogin !== false ? 'Allowed' : 'Blocked'} variant={delegate.canLogin !== false ? 'success' : 'danger'} /></td>
+          <td className="px-4 py-4 text-sm"><Badge label={delegate.canBook !== false ? 'Allowed' : 'Blocked'} variant={delegate.canBook !== false ? 'success' : 'danger'} /></td>
           <td className="px-4 py-4 text-sm"><Badge label={delegate.accountStatus ?? 'active'} variant={delegate.accountStatus === 'active' ? 'success' : 'warning'} /></td>
         </tr>
       })}

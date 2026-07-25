@@ -7,6 +7,8 @@ export interface DelegatePayload {
   managerName?: string;
   managerEmail?: string;
   accountStatus?: "active" | "inactive" | "anonymised";
+  canLogin?: boolean;
+  canBook?: boolean;
   adminNotes?: string;
   specialRequirements?: string;
 }
@@ -32,6 +34,8 @@ export function delegateValues(payload: DelegatePayload) {
     managerName: payload.managerName!.trim(),
     managerEmail: payload.managerEmail!.trim().toLowerCase(),
     accountStatus: payload.accountStatus ?? "active",
+    canLogin: payload.canLogin ?? true,
+    canBook: payload.canBook ?? true,
     adminNotes: payload.adminNotes?.trim() ?? "",
     specialRequirements: payload.specialRequirements?.trim() ?? "",
     updatedAt: new Date().toISOString(),

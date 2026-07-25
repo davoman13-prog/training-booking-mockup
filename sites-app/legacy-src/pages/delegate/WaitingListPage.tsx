@@ -9,15 +9,17 @@ export default function WaitingListPage() {
   const { courses, waitingListEntries, refresh, isLoading } = useCatalog()
   const [removing, setRemoving] = useState('')
   const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
 
   async function remove(entryId: string) {
     if (!window.confirm('Leave this course waiting list?')) return
-    setRemoving(entryId); setError('')
+    setRemoving(entryId); setError(''); setMessage('')
     try {
       const response = await fetch(`/api/waiting-list/${entryId}`, { method: 'DELETE' })
-      const result = await response.json() as { message?: string }
+      const result = await response.json() as { emailSent?: boolean; message?: string }
       if (!response.ok) throw new Error(result.message ?? 'The waiting-list entry could not be removed.')
       await refresh()
+      setMessage(result.emailSent ? 'You have left the waiting list and a confirmation email has been sent.' : 'You have left the waiting list, but the confirmation email could not be sent.')
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'The waiting-list entry could not be removed.')
     } finally { setRemoving('') }
@@ -33,6 +35,7 @@ export default function WaitingListPage() {
         <p className="mt-2 text-sm text-slate-600">The training team can offer you a place when a suitable new session is created.</p>
       </div>
       {error ? <p className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-800">{error}</p> : null}
+      {message ? <p className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">{message}</p> : null}
       {waitingListEntries.length === 0 ? (
         <Card><p className="text-slate-700">You are not currently on any course waiting lists.</p><Link to="/delegate/browse"><Button className="mt-4">Browse courses</Button></Link></Card>
       ) : (

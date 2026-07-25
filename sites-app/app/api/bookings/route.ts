@@ -18,6 +18,7 @@ export async function POST(request: Request) {
     if (!payload.termsAccepted) return Response.json({ code: "TERMS_REQUIRED", message: "The booking terms must be accepted." }, { status: 400 });
     const delegate = await currentDelegate(request);
     if (!delegate) return Response.json({ code: "NOT_AUTHENTICATED", message: "Log in before creating a booking." }, { status: 401 });
+    if (!delegate.canBook) return Response.json({ code: "BOOKING_BLOCKED", message: "Your account is not currently permitted to make course bookings." }, { status: 403 });
     const delegateId = delegate.id;
 
     const session = await env.DB.prepare(

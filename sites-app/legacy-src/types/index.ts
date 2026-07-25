@@ -88,6 +88,8 @@ export interface Delegate {
   managerName: string
   managerEmail: string
   accountStatus?: 'active' | 'inactive' | 'anonymised'
+  canLogin?: boolean
+  canBook?: boolean
   registrationDate?: string
   adminNotes?: string
   specialRequirements?: string

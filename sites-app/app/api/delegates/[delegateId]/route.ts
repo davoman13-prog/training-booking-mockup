@@ -15,6 +15,7 @@ export async function PUT(request: Request, context: RouteContext) {
     if (error) return Response.json({ code: "INVALID_DELEGATE", message: error }, { status: 400 });
     const [delegate] = await getDb().update(delegates).set(delegateValues(payload)).where(eq(delegates.id, delegateId)).returning();
     if (!delegate) return Response.json({ code: "DELEGATE_NOT_FOUND", message: "The delegate was not found." }, { status: 404 });
+    if (!delegate.canLogin) await getDb().delete(delegateAuthSessions).where(eq(delegateAuthSessions.delegateId, delegateId));
     return Response.json({ delegate });
   } catch (error) {
     const message = error instanceof Error ? error.message : "The delegate could not be updated.";

@@ -64,16 +64,16 @@ export async function currentDelegate(request: Request) {
   if (!token) return null;
   const tokenHash = await sha256(token);
   const row = await env.DB.prepare(
-    `SELECT d.id, d.first_name, d.last_name, d.email, d.account_status, s.id AS session_id
+    `SELECT d.id, d.first_name, d.last_name, d.email, d.account_status, d.can_login, d.can_book, s.id AS session_id
      FROM delegate_auth_sessions s JOIN delegates d ON d.id = s.delegate_id
      WHERE s.token_hash = ? AND s.expires_at > ?`,
   ).bind(tokenHash, new Date().toISOString()).first<{
-    id: string; first_name: string; last_name: string; email: string; account_status: string; session_id: string;
+    id: string; first_name: string; last_name: string; email: string; account_status: string; can_login: number; can_book: number; session_id: string;
   }>();
-  if (!row || row.account_status !== "active") return null;
+  if (!row || row.account_status !== "active" || !row.can_login) return null;
   await env.DB.prepare("UPDATE delegate_auth_sessions SET last_used_at = ? WHERE id = ?")
     .bind(new Date().toISOString(), row.session_id).run();
-  return { id: row.id, name: `${row.first_name} ${row.last_name}`.trim(), email: row.email, role: "delegate" as const, sessionId: row.session_id };
+  return { id: row.id, name: `${row.first_name} ${row.last_name}`.trim(), email: row.email, role: "delegate" as const, sessionId: row.session_id, canBook: Boolean(row.can_book) };
 }
 
 export async function revokeDelegateSession(request: Request) {

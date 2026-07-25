@@ -1,6 +1,7 @@
 import { env } from "cloudflare:workers";
 import { requireAdmin } from "../../auth/auth";
 import { BookingEmailDetails, sendBookingConfirmation } from "../../bookings/bookingConfirmationEmail";
+import { sendWaitingListRemoved } from "../waitingListEmail";
 
 export async function POST(request: Request) {
   const denied = await requireAdmin(request); if (denied) return denied;
@@ -24,7 +25,11 @@ export async function POST(request: Request) {
     if (session.available_seats < 1) return Response.json({ code: "SESSION_FULL", message: "This session is full." }, { status: 409 });
     const placeholders = delegateIds.map(() => "?").join(",");
     const waiting = await env.DB.prepare(
-      `SELECT id, delegate_id FROM waiting_list_entries WHERE course_id = ? AND delegate_id IN (${placeholders})`,
+      `SELECT w.id, w.delegate_id
+       FROM waiting_list_entries w
+       JOIN delegates d ON d.id = w.delegate_id
+       WHERE w.course_id = ? AND w.delegate_id IN (${placeholders})
+         AND d.account_status = 'active' AND d.can_book = 1`,
     ).bind(session.course_id, ...delegateIds).all<{ id: string; delegate_id: string }>();
     const selected = waiting.results.slice(0, session.available_seats);
     if (!selected.length) return Response.json({ code: "NO_ELIGIBLE_DELEGATES", message: "No selected delegates remain on this waiting list." }, { status: 409 });
@@ -73,7 +78,11 @@ export async function POST(request: Request) {
            FROM bookings b JOIN delegates d ON d.id = b.delegate_id JOIN courses c ON c.id = b.course_id
            JOIN sessions s ON s.id = b.session_id JOIN locations l ON l.id = b.location_id WHERE b.id = ?`,
         ).bind(bookingId).first<BookingEmailDetails>();
-        if (details) { await sendBookingConfirmation(details); emailsSent += 1; }
+        if (details) {
+          await sendBookingConfirmation(details);
+          await sendWaitingListRemoved({ delegateName: details.delegateName, delegateEmail: details.delegateEmail, courseTitle: details.courseTitle }, true);
+          emailsSent += 1;
+        }
       } catch (emailError) {
         console.error("Waiting-list booking succeeded but confirmation email failed.", { bookingId, error: emailError });
       }

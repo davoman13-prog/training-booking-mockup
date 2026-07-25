@@ -15,7 +15,7 @@ export default function DelegateDetailPage() {
   const navigate = useNavigate()
   const { delegates, bookings, courses, sessions, isLoading, refresh } = useCatalog()
   const delegate = delegates.find((item) => item.id === delegateId)
-  const [form, setForm] = useState({ firstName: '', lastName: '', email: '', phone: '', organisation: '', managerName: '', managerEmail: '', accountStatus: 'active', adminNotes: '', specialRequirements: '' })
+  const [form, setForm] = useState({ firstName: '', lastName: '', email: '', phone: '', organisation: '', managerName: '', managerEmail: '', accountStatus: 'active', canLogin: true, canBook: true, adminNotes: '', specialRequirements: '' })
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
@@ -26,7 +26,7 @@ export default function DelegateDetailPage() {
     const [firstName, ...lastName] = delegate.name.split(' ')
     // Hydrate the controlled form whenever a refreshed database record arrives.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setForm({ firstName, lastName: lastName.join(' '), email: delegate.email, phone: delegate.phone ?? '', organisation: delegate.organisation, managerName: delegate.managerName, managerEmail: delegate.managerEmail, accountStatus: delegate.accountStatus ?? 'active', adminNotes: delegate.adminNotes ?? '', specialRequirements: delegate.specialRequirements ?? '' })
+    setForm({ firstName, lastName: lastName.join(' '), email: delegate.email, phone: delegate.phone ?? '', organisation: delegate.organisation, managerName: delegate.managerName, managerEmail: delegate.managerEmail, accountStatus: delegate.accountStatus ?? 'active', canLogin: delegate.canLogin ?? true, canBook: delegate.canBook ?? true, adminNotes: delegate.adminNotes ?? '', specialRequirements: delegate.specialRequirements ?? '' })
   }, [delegate])
 
   if (isLoading) return <p className="rounded-2xl border border-slate-200 bg-white p-8 text-slate-700">Loading the live delegate...</p>
@@ -34,7 +34,7 @@ export default function DelegateDetailPage() {
   const delegateBookings = bookings.filter((booking) => booking.delegateId === delegate.id)
   const upcoming = delegateBookings.filter((booking) => booking.status !== 'cancelled' && sessions.find((session) => session.id === booking.sessionId)?.status === 'scheduled').length
 
-  function field(name: keyof typeof form, value: string) { setForm((current) => ({ ...current, [name]: value })) }
+  function field<K extends keyof typeof form>(name: K, value: typeof form[K]) { setForm((current) => ({ ...current, [name]: value })) }
   async function handleSave(event: FormEvent) {
     event.preventDefault(); setSaving(true); setMessage(''); setError('')
     try {
@@ -68,6 +68,14 @@ export default function DelegateDetailPage() {
       <div className="grid gap-5 md:grid-cols-3"><div><label className="text-sm font-semibold">First name</label><Input value={form.firstName} onChange={(e) => field('firstName', e.target.value)} required /></div><div><label className="text-sm font-semibold">Last name</label><Input value={form.lastName} onChange={(e) => field('lastName', e.target.value)} required /></div><div><label className="text-sm font-semibold">Status</label><Select value={form.accountStatus} onChange={(e) => field('accountStatus', e.target.value)}><option value="active">Active</option><option value="inactive">Inactive</option><option value="anonymised">Anonymised</option></Select></div></div>
       <div className="grid gap-5 md:grid-cols-3"><div><label className="text-sm font-semibold">Email</label><Input type="email" value={form.email} onChange={(e) => field('email', e.target.value)} required /></div><div><label className="text-sm font-semibold">Phone</label><Input value={form.phone} onChange={(e) => field('phone', e.target.value)} /></div><div><label className="text-sm font-semibold">Practice / organisation</label><Input value={form.organisation} onChange={(e) => field('organisation', e.target.value)} required /></div></div>
       <div className="grid gap-5 md:grid-cols-2"><div><label className="text-sm font-semibold">Practice manager</label><Input value={form.managerName} onChange={(e) => field('managerName', e.target.value)} required /></div><div><label className="text-sm font-semibold">Manager email</label><Input type="email" value={form.managerEmail} onChange={(e) => field('managerEmail', e.target.value)} required /></div></div>
+      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+        <h2 className="text-lg font-semibold text-slate-950">Account security</h2>
+        <p className="mt-1 text-sm text-slate-600">Control signing in and making new bookings separately.</p>
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <label className="flex items-start gap-3 rounded-2xl bg-white p-4"><input type="checkbox" className="mt-1 h-4 w-4" checked={form.canLogin} onChange={(event) => field('canLogin', event.target.checked)} /><span><span className="font-semibold text-slate-950">Can sign in</span><span className="mt-1 block text-sm text-slate-600">Turning this off signs the delegate out immediately and prevents future login.</span></span></label>
+          <label className="flex items-start gap-3 rounded-2xl bg-white p-4"><input type="checkbox" className="mt-1 h-4 w-4" checked={form.canBook} onChange={(event) => field('canBook', event.target.checked)} /><span><span className="font-semibold text-slate-950">Can book courses and join waiting lists</span><span className="mt-1 block text-sm text-slate-600">Turning this off preserves their records but prevents new bookings and waiting-list requests.</span></span></label>
+        </div>
+      </div>
       <div><label className="text-sm font-semibold">Admin notes</label><Textarea rows={3} value={form.adminNotes} onChange={(e) => field('adminNotes', e.target.value)} /></div>
       <div><label className="text-sm font-semibold">Standing special requirements</label><Textarea rows={3} value={form.specialRequirements} onChange={(e) => field('specialRequirements', e.target.value)} /></div>
       <div className="flex flex-wrap justify-between gap-3"><Button type="button" variant="ghost" onClick={() => setConfirmRemove(true)}>Remove delegate</Button><Button type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save delegate'}</Button></div>

@@ -64,6 +64,13 @@
       "when": 1784998271082,
       "tag": "0008_familiar_moonstone",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1784999013379,
+      "tag": "0009_black_blue_blade",
+      "breakpoints": true
     }
   ]
 }
