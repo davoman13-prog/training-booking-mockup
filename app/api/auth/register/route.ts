@@ -1,6 +1,7 @@
 import { env } from "cloudflare:workers";
 import { createDelegateSession, hashPassword } from "../auth";
 import { DelegatePayload, validateDelegatePayload } from "../../delegates/delegatePayload";
+import { createAndSendCode, emailDeliveryConfigured } from "../email";
 
 interface RegistrationPayload extends DelegatePayload { password?: string; termsAccepted?: boolean }
 
@@ -21,6 +22,7 @@ export async function POST(request: Request) {
 
     const id = `delegate-${crypto.randomUUID()}`;
     const now = new Date().toISOString();
+    const requiresVerification = emailDeliveryConfigured();
     const { salt, hash } = await hashPassword(payload.password!);
     await env.DB.batch([
       env.DB.prepare(
@@ -28,10 +30,33 @@ export async function POST(request: Request) {
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', '', '', ?, ?)`,
       ).bind(id, payload.firstName!.trim(), payload.lastName!.trim(), payload.email!.trim().toLowerCase(), payload.phone?.trim() || null, payload.organisation!.trim(), payload.managerName!.trim(), payload.managerEmail!.trim().toLowerCase(), now, now),
       env.DB.prepare(
-        `INSERT INTO delegate_auth_accounts (delegate_id, password_hash, password_salt, failed_attempts, password_updated_at, created_at, updated_at)
-         VALUES (?, ?, ?, 0, ?, ?, ?)`,
-      ).bind(id, hash, salt, now, now, now),
+        `INSERT INTO delegate_auth_accounts (delegate_id, password_hash, password_salt, failed_attempts, email_verified_at, password_updated_at, created_at, updated_at)
+         VALUES (?, ?, ?, 0, ?, ?, ?, ?)`,
+      ).bind(id, hash, salt, requiresVerification ? null : now, now, now, now),
     ]);
+    if (requiresVerification) {
+      let emailSent = true;
+      try {
+        await createAndSendCode({
+          accountType: "delegate",
+          accountId: id,
+          email: payload.email!.trim().toLowerCase(),
+          name: payload.firstName!.trim(),
+          purpose: "verify_email",
+        });
+      } catch (error) {
+        emailSent = false;
+        console.error("Initial verification email failed.", error);
+      }
+      return Response.json({
+        requiresVerification: true,
+        email: payload.email!.trim().toLowerCase(),
+        emailSent,
+        message: emailSent
+          ? "Account created. Enter the code sent to your email address."
+          : "Account created, but the verification email could not be sent. Request a new code to continue.",
+      }, { status: 201 });
+    }
     const session = await createDelegateSession(id);
     return Response.json(
       { user: { id, name: `${payload.firstName!.trim()} ${payload.lastName!.trim()}`, email: payload.email!.trim().toLowerCase(), role: "delegate" } },

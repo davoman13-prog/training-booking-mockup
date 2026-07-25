@@ -59,6 +59,13 @@ const invoiceRouteUrl = new URL("../app/api/invoices/[invoiceId]/route.ts", impo
 const certificateRouteUrl = new URL("../app/api/certificates/[certificateId]/route.ts", import.meta.url);
 const schemaUrl = new URL("../db/schema.ts", import.meta.url);
 const financeMigrationUrl = new URL("../drizzle/0005_fair_stranger.sql", import.meta.url);
+const emailCodeUrl = new URL("../app/api/auth/email.ts", import.meta.url);
+const verifyEmailUrl = new URL("../app/api/auth/verify-email/route.ts", import.meta.url);
+const forgotPasswordUrl = new URL("../app/api/auth/forgot-password/route.ts", import.meta.url);
+const resetPasswordUrl = new URL("../app/api/auth/reset-password/route.ts", import.meta.url);
+const emailMigrationUrl = new URL("../drizzle/0006_flowery_iron_man.sql", import.meta.url);
+const verifyEmailPageUrl = new URL("../legacy-src/pages/delegate/VerifyEmailPage.tsx", import.meta.url);
+const forgotPasswordPageUrl = new URL("../legacy-src/pages/delegate/ForgotPasswordPage.tsx", import.meta.url);
 
 test("catalogue refresh always reads current server data", async () => {
   const hook = await readFile(catalogHookUrl, "utf8");
@@ -339,4 +346,36 @@ test("administration dashboard waits for live data and uses the real current dat
   assert.match(hook, /courses: \[\], locations: \[\]/);
   assert.doesNotMatch(rules, /mockCurrentDate|data\/mockData/);
   assert.match(rules, /const now = new Date\(\)/);
+});
+
+test("email verification and password recovery use expiring protected codes", async () => {
+  const [codes, verification, forgot, reset, migration, verifyPage, forgotPage, register, login] = await Promise.all([
+    readFile(emailCodeUrl, "utf8"),
+    readFile(verifyEmailUrl, "utf8"),
+    readFile(forgotPasswordUrl, "utf8"),
+    readFile(resetPasswordUrl, "utf8"),
+    readFile(emailMigrationUrl, "utf8"),
+    readFile(verifyEmailPageUrl, "utf8"),
+    readFile(forgotPasswordPageUrl, "utf8"),
+    readFile(authRegisterUrl, "utf8"),
+    readFile(authLoginUrl, "utf8"),
+  ]);
+  assert.match(codes, /CODE_LIFETIME_MINUTES = 15/);
+  assert.match(codes, /MAX_CODE_ATTEMPTS = 5/);
+  assert.match(codes, /MIN_RESEND_SECONDS = 60/);
+  assert.match(codes, /hashSecurityCode\(code\)/);
+  assert.doesNotMatch(codes, /INSERT INTO auth_email_codes[\s\S]*\bcode\b,/);
+  assert.match(codes, /https:\/\/api\.brevo\.com\/v3\/smtp\/email/);
+  assert.match(verification, /consumeCode/);
+  assert.match(verification, /email_verified_at/);
+  assert.match(forgot, /admin \? "admin" : "delegate"/);
+  assert.match(forgot, /If an active account uses that email address/);
+  assert.match(reset, /DELETE FROM admin_auth_sessions/);
+  assert.match(reset, /DELETE FROM delegate_auth_sessions/);
+  assert.match(migration, /auth_email_codes/);
+  assert.match(migration, /UPDATE `delegate_auth_accounts` SET `email_verified_at`/);
+  assert.match(register, /requiresVerification/);
+  assert.match(login, /EMAIL_NOT_VERIFIED/);
+  assert.match(verifyPage, /autoComplete="one-time-code"/);
+  assert.match(forgotPage, /This works for delegate and administrator accounts/);
 });

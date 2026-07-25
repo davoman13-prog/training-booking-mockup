@@ -3,6 +3,8 @@ import { MockUser } from '../types'
 import DelegateDashboardPage from '../pages/delegate/DashboardPage'
 import RegisterPage from '../pages/delegate/RegisterPage'
 import LoginPage from '../pages/delegate/LoginPage'
+import VerifyEmailPage from '../pages/delegate/VerifyEmailPage'
+import ForgotPasswordPage from '../pages/delegate/ForgotPasswordPage'
 import BrowseCoursesPage from '../pages/delegate/BrowseCoursesPage'
 import CourseDetailPage from '../pages/delegate/CourseDetailPage'
 import BookingFormPage from '../pages/delegate/BookingFormPage'
@@ -45,6 +47,8 @@ export default function AppRoutes({ currentUser, onLogin }: AppRoutesProps) {
       <Route path="login" element={currentUser ? <Navigate to={homePath} replace /> : <LoginPage onLogin={onLogin} />} />
       <Route path="delegate/login" element={<Navigate to="/login" replace />} />
       <Route path="delegate/register" element={<RegisterPage onLogin={onLogin} />} />
+      <Route path="verify-email" element={currentUser ? <Navigate to={homePath} replace /> : <VerifyEmailPage onLogin={onLogin} />} />
+      <Route path="forgot-password" element={currentUser ? <Navigate to={homePath} replace /> : <ForgotPasswordPage />} />
 
       {!currentUser ? (
         <>

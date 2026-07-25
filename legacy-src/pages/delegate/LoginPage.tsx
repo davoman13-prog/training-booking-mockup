@@ -22,7 +22,11 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       })
-      const result = await response.json() as { user?: MockUser; message?: string }
+      const result = await response.json() as { user?: MockUser; message?: string; requiresVerification?: boolean; email?: string }
+      if (result.requiresVerification) {
+        navigate(`/verify-email?email=${encodeURIComponent(result.email ?? email)}`)
+        return
+      }
       if (!response.ok || !result.user) throw new Error(result.message ?? 'Sign-in could not be completed.')
       onLogin(result.user)
       navigate(result.user.role === 'admin' ? '/admin/dashboard' : '/delegate/dashboard')
@@ -45,6 +49,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
         <div><label className="text-sm font-semibold text-slate-900">Password</label><Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Enter your password" autoComplete="current-password" required /></div>
         <Button type="submit" className="w-full" disabled={submitting}>{submitting ? 'Signing in…' : 'Sign in'}</Button>
       </form>
+      <div className="mt-4 text-right"><Link to="/forgot-password" className="text-sm font-semibold text-cyan-800">Forgotten your password?</Link></div>
       <div className="mt-5 rounded-2xl bg-cyan-50 p-4 text-sm text-slate-700">New to Kalu Training? <Link to="/delegate/register" className="font-semibold text-cyan-800">Create an account</Link></div>
     </Card>
   </div>

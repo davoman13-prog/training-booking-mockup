@@ -19,6 +19,10 @@ async function sha256(value: string) {
   return toBase64Url(new Uint8Array(await crypto.subtle.digest("SHA-256", encoder.encode(value))));
 }
 
+export async function hashSecurityCode(value: string) {
+  return sha256(value);
+}
+
 export async function hashPassword(password: string, salt = randomToken(16)) {
   const key = await crypto.subtle.importKey("raw", encoder.encode(password), "PBKDF2", false, ["deriveBits"]);
   const bits = await crypto.subtle.deriveBits(

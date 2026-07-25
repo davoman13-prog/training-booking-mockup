@@ -39,8 +39,13 @@ export default function RegisterPage({ onLogin }: RegisterPageProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ firstName, lastName, email, phone, organisation, managerName, managerEmail, password, termsAccepted }),
       })
-      const result = await response.json() as { user?: MockUser; message?: string }
-      if (!response.ok || !result.user) throw new Error(result.message ?? 'The delegate account could not be created.')
+      const result = await response.json() as { user?: MockUser; message?: string; requiresVerification?: boolean; email?: string }
+      if (!response.ok) throw new Error(result.message ?? 'The delegate account could not be created.')
+      if (result.requiresVerification) {
+        navigate(`/verify-email?email=${encodeURIComponent(result.email ?? email)}`, { replace: true })
+        return
+      }
+      if (!result.user) throw new Error(result.message ?? 'The delegate account could not be created.')
 
     setSubmitted(true)
     onLogin(result.user)

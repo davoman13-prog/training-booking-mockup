@@ -42,13 +42,16 @@ export async function POST(request: Request) {
     }
 
     const account = await env.DB.prepare(
-      `SELECT d.id, d.first_name, d.last_name, d.email, d.account_status, a.password_hash, a.password_salt, a.failed_attempts, a.locked_until
+      `SELECT d.id, d.first_name, d.last_name, d.email, d.account_status, a.password_hash, a.password_salt, a.failed_attempts, a.locked_until, a.email_verified_at
        FROM delegates d JOIN delegate_auth_accounts a ON a.delegate_id = d.id WHERE d.email = ?`,
     ).bind(email).first<{
       id: string; first_name: string; last_name: string; email: string; account_status: string;
-      password_hash: string; password_salt: string; failed_attempts: number; locked_until: string | null;
+      password_hash: string; password_salt: string; failed_attempts: number; locked_until: string | null; email_verified_at: string | null;
     }>();
     if (!account) return Response.json(genericError, { status: 401 });
+    if (!account.email_verified_at) {
+      return Response.json({ code: "EMAIL_NOT_VERIFIED", message: "Confirm your email address before signing in.", requiresVerification: true, email }, { status: 403 });
+    }
     if (account.locked_until && account.locked_until > new Date().toISOString()) {
       return Response.json({ code: "ACCOUNT_LOCKED", message: "This account is temporarily locked after repeated unsuccessful attempts. Try again in 15 minutes." }, { status: 429 });
     }
