@@ -6,6 +6,7 @@ import Card from '../../components/ui/Card'
 import Input from '../../components/ui/Input'
 import Select from '../../components/ui/Select'
 import { formatCurrency, formatDate } from '../../utils/formatters'
+import { canBookSession } from '../../utils/sessionRules'
 import useCatalog from '../../hooks/useCatalog'
 
 const anyValue = 'any'
@@ -33,7 +34,7 @@ export default function BrowseCoursesPage() {
       const matchesLocation = locationId === anyValue || course.locationId === locationId || courseSessions.some((session) => session.locationId === locationId)
       const matchesAvailability =
         availability === anyValue ||
-        (availability === 'available' && courseSessions.some((session) => session.status === 'scheduled' && session.availableSeats > 0)) ||
+        (availability === 'available' && courseSessions.some((session) => canBookSession(session, course))) ||
         (availability === 'cancelled' && courseSessions.some((session) => session.status === 'cancelled')) ||
         (availability === 'completed' && courseSessions.some((session) => session.status === 'completed'))
 
@@ -139,7 +140,7 @@ export default function BrowseCoursesPage() {
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {filteredCourses.map((course) => {
             const courseSessions = sessions.filter((session) => session.courseId === course.id)
-            const firstAvailableSession = courseSessions.find((session) => session.status === 'scheduled' && session.availableSeats > 0)
+            const firstAvailableSession = courseSessions.find((session) => canBookSession(session, course))
             const courseLocation = locations.find((location) => location.id === course.locationId)
 
             return (

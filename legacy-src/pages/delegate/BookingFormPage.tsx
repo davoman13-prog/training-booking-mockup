@@ -6,7 +6,7 @@ import Card from '../../components/ui/Card'
 import Input from '../../components/ui/Input'
 import Textarea from '../../components/ui/Textarea'
 import { formatCurrency, formatDate } from '../../utils/formatters'
-import { canBookSession, delegateSessionAvailabilityMessage } from '../../utils/sessionRules'
+import { canBookSession, delegateSessionAvailabilityMessage, isPastSession } from '../../utils/sessionRules'
 import useCatalog from '../../hooks/useCatalog'
 import { MockUser } from '../../types'
 
@@ -32,9 +32,15 @@ export default function BookingFormPage({ currentUser }: { currentUser: MockUser
   }
 
   const delegate = delegates.find((item) => item.id === currentUser.id)
-  const bookingBlocked = !canBookSession(selectedSession)
+  const bookingBlocked = !canBookSession(selectedSession, course)
   const blockedMessage =
-    selectedSession.status === 'on_hold'
+    course.status === 'cancelled'
+      ? 'This course has been cancelled and cannot accept new bookings.'
+      : course.status === 'completed'
+      ? 'This course has completed and cannot accept new bookings.'
+      : isPastSession(selectedSession)
+      ? 'This session date has passed and cannot accept new bookings.'
+      : selectedSession.status === 'on_hold'
       ? 'This session is On Hold - no new bookings can be made. Existing bookings remain visible.'
       : selectedSession.status === 'cancelled'
       ? 'This session has been cancelled and cannot accept new bookings.'

@@ -404,3 +404,27 @@ test("successful bookings send complete joining instructions without risking the
   assert.match(booking, /confirmationEmailSent/);
   assert.match(confirmation, /joining instructions have been emailed to you/);
 });
+
+test("delegates cannot book expired or cancelled training and receive cancellation emails", async () => {
+  const [bookingCreate, bookingCancel, email, rules, bookingForm, courseDetail] = await Promise.all([
+    readFile(bookingCreateUrl, "utf8"),
+    readFile(bookingCancelUrl, "utf8"),
+    readFile(bookingEmailUrl, "utf8"),
+    readFile(sessionRulesUrl, "utf8"),
+    readFile(bookingFormUrl, "utf8"),
+    readFile(courseDetailUrl, "utf8"),
+  ]);
+  assert.match(bookingCreate, /course_status === "cancelled".*course_status === "completed"/s);
+  assert.match(bookingCreate, /SESSION_PASSED/);
+  assert.match(bookingCreate, /start_date >= date\('now'\)/);
+  assert.match(bookingCreate, /courses\.status NOT IN \('cancelled', 'completed'\)/);
+  assert.match(rules, /isPastSession/);
+  assert.match(rules, /course\?\.status !== 'cancelled'/);
+  assert.match(bookingForm, /canBookSession\(selectedSession, course\)/);
+  assert.match(courseDetail, /canBookSession\(session, course\)/);
+  assert.match(email, /Booking cancelled:/);
+  assert.match(email, /Your place has been released/);
+  assert.match(bookingCancel, /sendBookingCancellation/);
+  assert.match(bookingCancel, /Booking cancellation succeeded but confirmation email failed/);
+  assert.match(bookingCancel, /cancellationEmailSent/);
+});

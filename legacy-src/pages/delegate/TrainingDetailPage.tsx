@@ -18,6 +18,7 @@ export default function TrainingDetailPage({ currentUser }: { currentUser: MockU
   const { bookings, courses, delegates, locations, sessions, trainers, attendanceRecords, invoices, certificates, isLoading, refresh } = useCatalog()
   const [cancelling, setCancelling] = useState(false)
   const [cancelError, setCancelError] = useState('')
+  const [cancelMessage, setCancelMessage] = useState('')
   const booking = bookings.find((item) => item.id === bookingId && item.delegateId === currentUser.id)
 
   if (isLoading) return <p className="rounded-2xl border border-slate-200 bg-white p-8 text-slate-700">Loading your live booking...</p>
@@ -36,12 +37,13 @@ export default function TrainingDetailPage({ currentUser }: { currentUser: MockU
 
   async function cancelBooking() {
     if (!booking || !window.confirm('Cancel this booking? The place will be released immediately.')) return
-    setCancelling(true); setCancelError('')
+    setCancelling(true); setCancelError(''); setCancelMessage('')
     try {
       const response = await fetch(`/api/bookings/${booking.id}/cancel`, { method: 'POST' })
-      const result = await response.json() as { message?: string }
+      const result = await response.json() as { message?: string; cancellationEmailSent?: boolean }
       if (!response.ok) throw new Error(result.message ?? 'The booking could not be cancelled.')
       await refresh()
+      setCancelMessage(result.cancellationEmailSent ? 'Booking cancelled. A confirmation email has been sent.' : 'Booking cancelled. The place has been released, but the confirmation email could not be sent.')
     } catch (error) {
       setCancelError(error instanceof Error ? error.message : 'The booking could not be cancelled.')
     } finally { setCancelling(false) }
@@ -132,6 +134,7 @@ export default function TrainingDetailPage({ currentUser }: { currentUser: MockU
 
       <div className="flex flex-wrap gap-3">
         {cancelError ? <p className="w-full rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-800">{cancelError}</p> : null}
+        {cancelMessage ? <p className="w-full rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-800">{cancelMessage}</p> : null}
         <Link to="/delegate/dashboard"><Button variant="secondary">Return to dashboard</Button></Link>
         <Link to="/delegate/bookings"><Button variant="ghost">View all bookings</Button></Link>
         {booking.status !== 'cancelled' && booking.status !== 'completed' ? <Button variant="secondary" onClick={cancelBooking} disabled={cancelling}>{cancelling ? 'Cancelling...' : 'Cancel booking'}</Button> : null}

@@ -9,6 +9,10 @@ export function daysUntilSession(session: Session) {
   return Math.ceil((start.getTime() - current.getTime()) / 86_400_000)
 }
 
+export function isPastSession(session: Session) {
+  return daysUntilSession(session) < 0
+}
+
 export function isSessionAtRisk(session: Session, course?: Course) {
   const minimum = course?.minimumAttendees
   const daysUntil = daysUntilSession(session)
@@ -57,12 +61,21 @@ export function statusVariant(status: SessionDisplayStatus) {
 }
 
 export function delegateSessionAvailabilityMessage(session: Session, course?: Course) {
+  if (course?.status === 'cancelled') return 'This course has been cancelled - no new bookings'
+  if (course?.status === 'completed') return 'This course has completed - no new bookings'
+  if (isPastSession(session)) return 'This session date has passed - no new bookings'
   if (session.status === 'on_hold') return 'On Hold - no new bookings'
   if (isSessionAtRisk(session, course)) return 'This session is not yet confirmed'
   if (course?.minimumAttendees && session.attendeeCount < course.minimumAttendees) return 'Awaiting minimum numbers'
   return ''
 }
 
-export function canBookSession(session: Session) {
-  return session.status === 'scheduled' && session.availableSeats > 0
+export function canBookSession(session: Session, course?: Course) {
+  return (
+    session.status === 'scheduled' &&
+    !isPastSession(session) &&
+    course?.status !== 'cancelled' &&
+    course?.status !== 'completed' &&
+    session.availableSeats > 0
+  )
 }
