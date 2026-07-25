@@ -146,7 +146,7 @@ export default function BookingFormPage({ currentUser }: { currentUser: MockUser
             I accept the terms and conditions for booking this course.
           </label>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="text-sm text-slate-600">The booking and session capacity will update immediately. Payment and email follow in later production stages.</div>
+            <div className="text-sm text-slate-600">The booking and session capacity will update immediately. We will email your confirmation and joining information after the booking is saved.</div>
             <Button type="submit" disabled={!termsAccepted || bookingBlocked || submitting || !isLive}>
               {bookingBlocked ? 'Booking unavailable' : submitting ? 'Creating booking...' : 'Confirm booking'}
             </Button>
