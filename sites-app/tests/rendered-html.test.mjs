@@ -83,6 +83,11 @@ const certificateIssueRouteUrl = new URL("../app/api/certificates/[certificateId
 const certificateDownloadUrl = new URL("../app/api/certificates/[certificateId]/download/route.ts", import.meta.url);
 const sessionCertificatesUrl = new URL("../app/api/sessions/[sessionId]/certificates/route.ts", import.meta.url);
 const attendancePageUrl = new URL("../legacy-src/pages/admin/AttendancePage.tsx", import.meta.url);
+const adminListsUrl = new URL("../app/api/admin/lists/[resource]/route.ts", import.meta.url);
+const paginationUrl = new URL("../legacy-src/components/ui/Pagination.tsx", import.meta.url);
+const paginatedHookUrl = new URL("../legacy-src/hooks/usePaginatedList.ts", import.meta.url);
+const bookingListUrl = new URL("../legacy-src/pages/admin/ViewBookingsPage.tsx", import.meta.url);
+const performanceMigrationUrl = new URL("../drizzle/0010_watery_franklin_storm.sql", import.meta.url);
 
 test("catalogue refresh always reads current server data", async () => {
   const hook = await readFile(catalogHookUrl, "utf8");
@@ -459,7 +464,7 @@ test("waiting lists are private, manageable, visible to administrators and conve
   ]);
   assert.match(migration, /CREATE TABLE `waiting_list_entries`/);
   assert.match(migration, /waiting_list_delegate_course_unique/);
-  assert.match(catalog, /visibleWaitingRows = admin \? waitingRows : delegate \? waitingRows\.filter/);
+  assert.match(catalog, /where\(eq\(waitingListEntries\.delegateId, delegate\.id\)\)/);
   assert.match(join, /currentDelegate\(request\)/);
   assert.match(join, /ALREADY_BOOKED/);
   assert.match(join, /course\.status === "cancelled".*course\.status === "completed"/s);
@@ -576,4 +581,31 @@ test("completed attendance produces secure stored PDF certificates and email att
   assert.match(trainingDetail, /Download certificate PDF/);
   assert.match(catalog, /\/api\/certificates\/\$\{certificate\.id\}\/download/);
   assert.match(email, /attachment: attachments/);
+});
+
+test("large delegate and booking registers use protected database pagination", async () => {
+  const [route, pagination, hook, delegateList, bookingList, migration, catalog] = await Promise.all([
+    readFile(adminListsUrl, "utf8"),
+    readFile(paginationUrl, "utf8"),
+    readFile(paginatedHookUrl, "utf8"),
+    readFile(delegatesPageUrl, "utf8"),
+    readFile(bookingListUrl, "utf8"),
+    readFile(performanceMigrationUrl, "utf8"),
+    readFile(catalogRouteUrl, "utf8"),
+  ]);
+  assert.match(route, /requireAdmin\(request\)/);
+  assert.match(route, /LIMIT \? OFFSET \?/);
+  assert.match(route, /SELECT count\(\*\) AS total/);
+  assert.match(route, /PAGE_SIZES = new Set\(\[25, 50, 100\]\)/);
+  assert.match(route, /lower\(d\.first_name \|\| ' ' \|\| d\.last_name\) LIKE \?/);
+  assert.match(pagination, /Showing \{start\}–\{end\} of/);
+  assert.match(pagination, /Previous/);
+  assert.match(pagination, /Next/);
+  assert.match(hook, /cache: 'no-store'/);
+  assert.match(delegateList, /usePaginatedList<DelegateListRow>\('delegates'/);
+  assert.match(bookingList, /usePaginatedList<BookingListRow>\('bookings'/);
+  assert.match(migration, /bookings_delegate_status_idx/);
+  assert.match(migration, /sessions_course_status_date_idx/);
+  assert.match(catalog, /where\(eq\(bookings\.delegateId, delegate\.id\)\)/);
+  assert.doesNotMatch(catalog, /bookingRows\.filter/);
 });

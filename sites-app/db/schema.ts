@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 const timestamps = {
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
@@ -118,7 +118,11 @@ export const sessions = sqliteTable("sessions", {
   availableSeats: integer("available_seats").notNull(),
   attendeeCount: integer("attendee_count").notNull().default(0),
   ...timestamps,
-});
+}, (table) => [
+  index("sessions_course_status_date_idx").on(table.courseId, table.status, table.startDate),
+  index("sessions_location_status_date_idx").on(table.locationId, table.status, table.startDate),
+  index("sessions_trainer_status_date_idx").on(table.trainerId, table.status, table.startDate),
+]);
 
 export const delegates = sqliteTable("delegates", {
   id: text("id").primaryKey(),
@@ -137,7 +141,10 @@ export const delegates = sqliteTable("delegates", {
   adminNotes: text("admin_notes").notNull().default(""),
   specialRequirements: text("special_requirements").notNull().default(""),
   ...timestamps,
-});
+}, (table) => [
+  index("delegates_account_status_idx").on(table.accountStatus),
+  index("delegates_name_idx").on(table.lastName, table.firstName),
+]);
 
 export const delegateAuthAccounts = sqliteTable("delegate_auth_accounts", {
   delegateId: text("delegate_id").primaryKey().references(() => delegates.id),
@@ -207,7 +214,12 @@ export const bookings = sqliteTable("bookings", {
   invoiceId: text("invoice_id"),
   certificateId: text("certificate_id"),
   ...timestamps,
-});
+}, (table) => [
+  index("bookings_delegate_status_idx").on(table.delegateId, table.status),
+  index("bookings_session_status_idx").on(table.sessionId, table.status),
+  index("bookings_course_status_idx").on(table.courseId, table.status),
+  index("bookings_date_idx").on(table.bookingDate),
+]);
 
 export const waitingListEntries = sqliteTable("waiting_list_entries", {
   id: text("id").primaryKey(),
@@ -217,6 +229,7 @@ export const waitingListEntries = sqliteTable("waiting_list_entries", {
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [
   uniqueIndex("waiting_list_delegate_course_unique").on(table.delegateId, table.courseId),
+  index("waiting_list_course_created_idx").on(table.courseId, table.createdAt),
 ]);
 
 export const attendanceRecords = sqliteTable("attendance_records", {
@@ -226,7 +239,9 @@ export const attendanceRecords = sqliteTable("attendance_records", {
   markedByUserId: text("marked_by_user_id").references(() => users.id),
   markedAt: text("marked_at"),
   ...timestamps,
-});
+}, (table) => [
+  index("attendance_outcome_idx").on(table.outcome),
+]);
 
 export const invoices = sqliteTable("invoices", {
   id: text("id").primaryKey(),
@@ -239,7 +254,9 @@ export const invoices = sqliteTable("invoices", {
   status: text("status", { enum: ["draft", "issued", "paid", "overdue", "cancelled"] }).notNull().default("draft"),
   paidAt: text("paid_at"),
   ...timestamps,
-});
+}, (table) => [
+  index("invoices_status_due_idx").on(table.status, table.dueDate),
+]);
 
 export const certificates = sqliteTable("certificates", {
   id: text("id").primaryKey(),
@@ -251,4 +268,6 @@ export const certificates = sqliteTable("certificates", {
   fileKey: text("file_key"),
   emailedAt: text("emailed_at"),
   ...timestamps,
-});
+}, (table) => [
+  index("certificates_delegate_status_idx").on(table.delegateId, table.status),
+]);

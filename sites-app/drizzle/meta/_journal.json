@@ -71,6 +71,13 @@
       "when": 1784999013379,
       "tag": "0009_black_blue_blade",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1785003884145,
+      "tag": "0010_watery_franklin_storm",
+      "breakpoints": true
     }
   ]
 }

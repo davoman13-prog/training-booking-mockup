@@ -12,29 +12,50 @@ import {
   waitingListEntries,
 } from "../../../db/schema";
 import { currentAdmin, currentDelegate } from "../auth/auth";
+import { eq, inArray } from "drizzle-orm";
 
 export async function GET(request: Request) {
   try {
     const db = getDb();
-    const [courseRows, locationRows, trainerRows, sessionRows, delegateRows, bookingRows, attendanceRows, invoiceRows, certificateRows, waitingRows] = await Promise.all([
+    const admin = await currentAdmin(request);
+    const delegate = admin ? null : await currentDelegate(request);
+    const [courseRows, locationRows, trainerRows, sessionRows] = await Promise.all([
       db.select().from(courses),
       db.select().from(locations),
       db.select().from(trainers),
       db.select().from(sessions),
-      db.select().from(delegates),
-      db.select().from(bookings),
-      db.select().from(attendanceRecords),
-      db.select().from(invoices),
-      db.select().from(certificates),
-      db.select().from(waitingListEntries),
     ]);
-
-    const admin = await currentAdmin(request);
-    const delegate = admin ? null : await currentDelegate(request);
-    const visibleBookings = admin ? bookingRows : delegate ? bookingRows.filter((booking) => booking.delegateId === delegate.id) : [];
-    const visibleDelegates = admin ? delegateRows : delegate ? delegateRows.filter((row) => row.id === delegate.id) : [];
+    const [visibleBookings, visibleDelegates, visibleWaitingRows] = await Promise.all([
+      admin
+        ? db.select().from(bookings)
+        : delegate
+          ? db.select().from(bookings).where(eq(bookings.delegateId, delegate.id))
+          : Promise.resolve([]),
+      admin
+        ? db.select().from(delegates)
+        : delegate
+          ? db.select().from(delegates).where(eq(delegates.id, delegate.id))
+          : Promise.resolve([]),
+      admin
+        ? db.select().from(waitingListEntries)
+        : delegate
+          ? db.select().from(waitingListEntries).where(eq(waitingListEntries.delegateId, delegate.id))
+          : Promise.resolve([]),
+    ]);
     const visibleBookingIds = new Set(visibleBookings.map((booking) => booking.id));
-    const visibleWaitingRows = admin ? waitingRows : delegate ? waitingRows.filter((entry) => entry.delegateId === delegate.id) : [];
+    const [attendanceRows, invoiceRows, certificateRows] = visibleBookingIds.size
+      ? await Promise.all([
+          db.select().from(attendanceRecords).where(inArray(attendanceRecords.bookingId, [...visibleBookingIds])),
+          db.select().from(invoices).where(inArray(invoices.bookingId, [...visibleBookingIds])),
+          db.select().from(certificates).where(inArray(certificates.bookingId, [...visibleBookingIds])),
+        ])
+      : [[], [], []];
+    const bookingsByDelegate = new Map<string, typeof visibleBookings>();
+    for (const booking of visibleBookings) {
+      const existing = bookingsByDelegate.get(booking.delegateId) ?? [];
+      existing.push(booking);
+      bookingsByDelegate.set(booking.delegateId, existing);
+    }
 
     return Response.json({
       courses: courseRows.map((course) => ({
@@ -58,18 +79,18 @@ export async function GET(request: Request) {
         ...delegate,
         name: `${delegate.firstName} ${delegate.lastName}`.trim(),
         registrationDate: delegate.createdAt,
-        bookingIds: visibleBookings.filter((booking) => booking.delegateId === delegate.id).map((booking) => booking.id),
-        certificateIds: visibleBookings.filter((booking) => booking.delegateId === delegate.id && booking.certificateId).map((booking) => booking.certificateId),
-        invoiceIds: visibleBookings.filter((booking) => booking.delegateId === delegate.id && booking.invoiceId).map((booking) => booking.invoiceId),
+        bookingIds: (bookingsByDelegate.get(delegate.id) ?? []).map((booking) => booking.id),
+        certificateIds: (bookingsByDelegate.get(delegate.id) ?? []).filter((booking) => booking.certificateId).map((booking) => booking.certificateId),
+        invoiceIds: (bookingsByDelegate.get(delegate.id) ?? []).filter((booking) => booking.invoiceId).map((booking) => booking.invoiceId),
       })),
       bookings: visibleBookings,
-      attendanceRecords: attendanceRows.filter((record) => visibleBookingIds.has(record.bookingId)),
-      invoices: invoiceRows.filter((invoice) => visibleBookingIds.has(invoice.bookingId)).map((invoice) => ({
+      attendanceRecords: attendanceRows,
+      invoices: invoiceRows.map((invoice) => ({
         ...invoice,
         amount: invoice.amountPence / 100,
         isGenerated: invoice.status !== "draft",
       })),
-      certificates: certificateRows.filter((certificate) => visibleBookingIds.has(certificate.bookingId)).map((certificate) => ({
+      certificates: certificateRows.map((certificate) => ({
         ...certificate,
         downloadLink: certificate.fileKey && ["issued", "available"].includes(certificate.status) ? `/api/certificates/${certificate.id}/download` : undefined,
       })),
