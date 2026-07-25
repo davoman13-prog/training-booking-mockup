@@ -142,8 +142,21 @@ export const delegateAuthAccounts = sqliteTable("delegate_auth_accounts", {
   passwordSalt: text("password_salt").notNull(),
   failedAttempts: integer("failed_attempts").notNull().default(0),
   lockedUntil: text("locked_until"),
+  emailVerifiedAt: text("email_verified_at"),
   passwordUpdatedAt: text("password_updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   ...timestamps,
+});
+
+export const authEmailCodes = sqliteTable("auth_email_codes", {
+  id: text("id").primaryKey(),
+  accountType: text("account_type", { enum: ["delegate", "admin"] }).notNull(),
+  accountId: text("account_id").notNull(),
+  purpose: text("purpose", { enum: ["verify_email", "reset_password"] }).notNull(),
+  codeHash: text("code_hash").notNull(),
+  expiresAt: text("expires_at").notNull(),
+  attempts: integer("attempts").notNull().default(0),
+  consumedAt: text("consumed_at"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
 export const delegateAuthSessions = sqliteTable("delegate_auth_sessions", {
