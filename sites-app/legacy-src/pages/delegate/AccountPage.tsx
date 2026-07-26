@@ -3,15 +3,17 @@ import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
 import Input from '../../components/ui/Input'
 import Textarea from '../../components/ui/Textarea'
+import Select from '../../components/ui/Select'
 
 interface ProfileRow {
   first_name: string; last_name: string; email: string; phone: string | null; organisation: string;
   manager_name: string; manager_email: string; special_requirements: string | null;
+  staff_type: 'manager' | 'office' | 'clinical';
 }
 
 export default function AccountPage() {
   const [profile, setProfile] = useState<ProfileRow | null>(null)
-  const [form, setForm] = useState({ firstName: '', lastName: '', phone: '', organisation: '', managerName: '', managerEmail: '', specialRequirements: '' })
+  const [form, setForm] = useState({ firstName: '', lastName: '', phone: '', organisation: '', managerName: '', managerEmail: '', staffType: 'clinical', specialRequirements: '' })
   const [profileMessage, setProfileMessage] = useState('')
   const [profileError, setProfileError] = useState('')
   const [saving, setSaving] = useState(false)
@@ -28,7 +30,7 @@ export default function AccountPage() {
       setForm({
         firstName: result.profile.first_name, lastName: result.profile.last_name, phone: result.profile.phone ?? '',
         organisation: result.profile.organisation, managerName: result.profile.manager_name,
-        managerEmail: result.profile.manager_email, specialRequirements: result.profile.special_requirements ?? '',
+        managerEmail: result.profile.manager_email, staffType: result.profile.staff_type, specialRequirements: result.profile.special_requirements ?? '',
       })
     }).catch((error) => setProfileError(error instanceof Error ? error.message : 'Your profile could not be loaded.'))
   }, [])
@@ -83,6 +85,7 @@ export default function AccountPage() {
             <div><label className="text-sm font-semibold">Phone</label><Input value={form.phone} onChange={(event) => field('phone', event.target.value)} /></div>
           </div>
           <div><label className="text-sm font-semibold">Practice / organisation</label><Input value={form.organisation} onChange={(event) => field('organisation', event.target.value)} required /></div>
+          <div><label className="text-sm font-semibold">My staff type</label><Select value={form.staffType} onChange={(event) => field('staffType', event.target.value)} required><option value="manager">Manager</option><option value="office">Office staff</option><option value="clinical">Clinical</option></Select><p className="mt-1 text-xs text-slate-500">Changing this updates which courses are available to you.</p></div>
           <div className="grid gap-5 md:grid-cols-2">
             <div><label className="text-sm font-semibold">Practice manager</label><Input value={form.managerName} onChange={(event) => field('managerName', event.target.value)} required /></div>
             <div><label className="text-sm font-semibold">Manager email</label><Input type="email" value={form.managerEmail} onChange={(event) => field('managerEmail', event.target.value)} required /></div>

@@ -11,6 +11,7 @@ export interface DelegatePayload {
   canBook?: boolean;
   adminNotes?: string;
   specialRequirements?: string;
+  staffType?: "manager" | "office" | "clinical";
 }
 
 export function validateDelegatePayload(payload: DelegatePayload) {
@@ -21,6 +22,7 @@ export function validateDelegatePayload(payload: DelegatePayload) {
   if (!payload.managerName?.trim()) return "Practice manager name is required.";
   if (!payload.managerEmail?.trim() || !payload.managerEmail.includes("@")) return "A valid practice manager email is required.";
   if (!["active", "inactive", "anonymised"].includes(payload.accountStatus ?? "active")) return "Account status is invalid.";
+  if (!["manager", "office", "clinical"].includes(payload.staffType ?? "")) return "Choose whether the delegate is management, office staff or clinical staff.";
   return "";
 }
 
@@ -38,6 +40,7 @@ export function delegateValues(payload: DelegatePayload) {
     canBook: payload.canBook ?? true,
     adminNotes: payload.adminNotes?.trim() ?? "",
     specialRequirements: payload.specialRequirements?.trim() ?? "",
+    staffType: payload.staffType!,
     updatedAt: new Date().toISOString(),
   };
 }

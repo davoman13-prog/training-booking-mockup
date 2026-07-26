@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import Card from '../../components/ui/Card'
 import Input from '../../components/ui/Input'
 import Button from '../../components/ui/Button'
+import Select from '../../components/ui/Select'
 import { MockUser } from '../../types'
 
 interface RegisterPageProps {
@@ -24,6 +25,7 @@ export default function RegisterPage({ onLogin }: RegisterPageProps) {
   const [submitting, setSubmitting] = useState(false)
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [staffType, setStaffType] = useState('')
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -37,7 +39,7 @@ export default function RegisterPage({ onLogin }: RegisterPageProps) {
       const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ firstName, lastName, email, phone, organisation, managerName, managerEmail, password, termsAccepted }),
+        body: JSON.stringify({ firstName, lastName, email, phone, organisation, managerName, managerEmail, staffType, password, termsAccepted }),
       })
       const result = await response.json() as { user?: MockUser; message?: string; requiresVerification?: boolean; email?: string }
       if (!response.ok) throw new Error(result.message ?? 'The delegate account could not be created.')
@@ -96,6 +98,16 @@ export default function RegisterPage({ onLogin }: RegisterPageProps) {
               <div>
                 <label className="text-sm font-semibold text-slate-900">Practice / organisation name</label>
                 <Input value={organisation} onChange={(event) => setOrganisation(event.target.value)} placeholder="Greenfield Surgery" required />
+              </div>
+              <div>
+                <label className="text-sm font-semibold text-slate-900">Your staff type</label>
+                <Select value={staffType} onChange={(event) => setStaffType(event.target.value)} required>
+                  <option value="">Choose your staff type</option>
+                  <option value="manager">Manager</option>
+                  <option value="office">Office staff</option>
+                  <option value="clinical">Clinical</option>
+                </Select>
+                <p className="mt-1 text-xs text-slate-500">This controls which courses are shown as available to you.</p>
               </div>
               <div>
                 <label className="text-sm font-semibold text-slate-900">Practice manager name</label>

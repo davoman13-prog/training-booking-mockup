@@ -13,14 +13,17 @@ export async function POST(request: Request) {
     if (!delegateId) return Response.json({ code: "DELEGATE_REQUIRED", message: "Choose a delegate." }, { status: 400 });
     if (signedInDelegate && !signedInDelegate.canBook) return Response.json({ code: "BOOKING_BLOCKED", message: "Your account is not currently permitted to join course waiting lists." }, { status: 403 });
     const targetDelegate = await env.DB.prepare(
-      "SELECT id, trim(first_name || ' ' || last_name) AS name, email, account_status, can_book FROM delegates WHERE id = ?",
-    ).bind(delegateId).first<{ id: string; name: string; email: string; account_status: string; can_book: number }>();
+      "SELECT id, trim(first_name || ' ' || last_name) AS name, email, account_status, can_book, staff_type FROM delegates WHERE id = ?",
+    ).bind(delegateId).first<{ id: string; name: string; email: string; account_status: string; can_book: number; staff_type: string }>();
     if (!targetDelegate) return Response.json({ code: "DELEGATE_NOT_FOUND", message: "The delegate was not found." }, { status: 404 });
     if (targetDelegate.account_status !== "active" || !targetDelegate.can_book) return Response.json({ code: "BOOKING_BLOCKED", message: "This delegate is not currently permitted to join waiting lists." }, { status: 409 });
-    const course = await env.DB.prepare("SELECT id, title, status FROM courses WHERE id = ?").bind(payload.courseId).first<{ id: string; title: string; status: string }>();
+    const course = await env.DB.prepare("SELECT id, title, status, audience_types FROM courses WHERE id = ?").bind(payload.courseId).first<{ id: string; title: string; status: string; audience_types: string }>();
     if (!course) return Response.json({ code: "COURSE_NOT_FOUND", message: "The course was not found." }, { status: 404 });
     if (course.status === "cancelled" || course.status === "completed") {
       return Response.json({ code: "COURSE_UNAVAILABLE", message: "A waiting list is not available for a cancelled or completed course." }, { status: 409 });
+    }
+    if (!(JSON.parse(course.audience_types) as string[]).includes(targetDelegate.staff_type)) {
+      return Response.json({ code: "COURSE_NOT_AVAILABLE_FOR_STAFF_TYPE", message: "This course is not available for that delegate's staff type." }, { status: 409 });
     }
     const activeBooking = await env.DB.prepare(
       "SELECT id FROM bookings WHERE delegate_id = ? AND course_id = ? AND status NOT IN ('cancelled', 'completed')",

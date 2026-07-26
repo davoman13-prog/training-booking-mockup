@@ -54,6 +54,7 @@ const appUrl = new URL("../legacy-src/App.tsx", import.meta.url);
 const loginUrl = new URL("../legacy-src/pages/delegate/LoginPage.tsx", import.meta.url);
 const catalogRouteUrl = new URL("../app/api/catalog/route.ts", import.meta.url);
 const courseCreateUrl = new URL("../app/api/courses/route.ts", import.meta.url);
+const coursePayloadValidationUrl = new URL("../app/api/courses/coursePayload.ts", import.meta.url);
 const attendanceRouteUrl = new URL("../app/api/attendance/[bookingId]/route.ts", import.meta.url);
 const invoiceRouteUrl = new URL("../app/api/invoices/[invoiceId]/route.ts", import.meta.url);
 const certificateRouteUrl = new URL("../app/api/certificates/[certificateId]/route.ts", import.meta.url);
@@ -88,6 +89,7 @@ const paginationUrl = new URL("../legacy-src/components/ui/Pagination.tsx", impo
 const paginatedHookUrl = new URL("../legacy-src/hooks/usePaginatedList.ts", import.meta.url);
 const bookingListUrl = new URL("../legacy-src/pages/admin/ViewBookingsPage.tsx", import.meta.url);
 const performanceMigrationUrl = new URL("../drizzle/0010_watery_franklin_storm.sql", import.meta.url);
+const audienceMigrationUrl = new URL("../drizzle/0011_nifty_black_knight.sql", import.meta.url);
 
 test("catalogue refresh always reads current server data", async () => {
   const hook = await readFile(catalogHookUrl, "utf8");
@@ -608,4 +610,34 @@ test("large delegate and booking registers use protected database pagination", a
   assert.match(migration, /sessions_course_status_date_idx/);
   assert.match(catalog, /where\(eq\(bookings\.delegateId, delegate\.id\)\)/);
   assert.doesNotMatch(catalog, /bookingRows\.filter/);
+});
+
+test("delegate staff types control course visibility, booking and waiting-list eligibility", async () => {
+  const [schema, migration, registration, account, courseForm, coursePayload, browse, booking, waiting, allocation, adminDelegate] = await Promise.all([
+    readFile(schemaUrl, "utf8"),
+    readFile(audienceMigrationUrl, "utf8"),
+    readFile(registerUrl, "utf8"),
+    readFile(accountPageUrl, "utf8"),
+    readFile(courseFormUrl, "utf8"),
+    readFile(coursePayloadValidationUrl, "utf8"),
+    readFile(new URL("../legacy-src/pages/delegate/BrowseCoursesPage.tsx", import.meta.url), "utf8"),
+    readFile(bookingCreateUrl, "utf8"),
+    readFile(waitingJoinUrl, "utf8"),
+    readFile(waitingBookUrl, "utf8"),
+    readFile(delegateDetailUrl, "utf8"),
+  ]);
+  assert.match(schema, /staffType: text\("staff_type"/);
+  assert.match(schema, /audienceTypes: text\("audience_types"/);
+  assert.match(migration, /audience_types.*manager.*office.*clinical/);
+  assert.match(migration, /staff_type/);
+  assert.match(registration, /Choose your staff type/);
+  assert.match(account, /My staff type/);
+  assert.match(adminDelegate, /Staff type/);
+  assert.match(courseForm, /Available to delegate staff types/);
+  assert.match(courseForm, /form\.getAll\('audienceTypes'\)/);
+  assert.match(coursePayload, /Select at least one delegate staff type/);
+  assert.match(browse, /course\.audienceTypes\.includes\(staffType\)/);
+  assert.match(booking, /COURSE_NOT_AVAILABLE_FOR_STAFF_TYPE/);
+  assert.match(waiting, /course\.audience_types/);
+  assert.match(allocation, /json_each\(c\.audience_types\)/);
 });

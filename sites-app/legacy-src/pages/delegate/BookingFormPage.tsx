@@ -32,9 +32,12 @@ export default function BookingFormPage({ currentUser }: { currentUser: MockUser
   }
 
   const delegate = delegates.find((item) => item.id === currentUser.id)
-  const bookingBlocked = !canBookSession(selectedSession, course)
+  const audienceBlocked = Boolean(delegate?.staffType && !course.audienceTypes.includes(delegate.staffType))
+  const bookingBlocked = audienceBlocked || !canBookSession(selectedSession, course)
   const blockedMessage =
-    course.status === 'cancelled'
+    audienceBlocked
+      ? 'This course is not available for your staff type. Update your staff type in My Account if it is incorrect.'
+      : course.status === 'cancelled'
       ? 'This course has been cancelled and cannot accept new bookings.'
       : course.status === 'completed'
       ? 'This course has completed and cannot accept new bookings.'

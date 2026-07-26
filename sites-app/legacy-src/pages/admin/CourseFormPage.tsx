@@ -84,6 +84,7 @@ export default function CourseFormPage() {
         .split(',')
         .map((tag) => tag.trim())
         .filter(Boolean),
+      audienceTypes: form.getAll('audienceTypes').map(String),
     }
 
     try {
@@ -195,6 +196,7 @@ export default function CourseFormPage() {
             course.status,
             course.locationId,
             course.tags.join('|'),
+            course.audienceTypes.join('|'),
           ].join(':') : 'new-course'}
           className="space-y-6"
           onSubmit={handleSubmit}
@@ -279,6 +281,22 @@ export default function CourseFormPage() {
             <label className="text-sm font-semibold text-slate-900">Tags / keywords</label>
             <Input name="tags" defaultValue={course?.tags.join(', ') ?? ''} placeholder="First aid, clinical, emergency" />
           </div>
+          <fieldset>
+            <legend className="text-sm font-semibold text-slate-900">Available to delegate staff types</legend>
+            <p className="mt-1 text-xs text-slate-500">Select one or more. Delegates only see and book courses matching their staff type.</p>
+            <div className="mt-3 grid gap-3 sm:grid-cols-3">
+              {[
+                ['manager', 'Manager'],
+                ['office', 'Office staff'],
+                ['clinical', 'Clinical'],
+              ].map(([value, label]) => (
+                <label key={value} className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <input type="checkbox" name="audienceTypes" value={value} defaultChecked={course ? course.audienceTypes.includes(value as 'manager' | 'office' | 'clinical') : true} className="h-4 w-4 rounded border-slate-300 text-cyan-700" />
+                  <span className="font-semibold text-slate-900">{label}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
           <div className="flex justify-end">
             <Button type="submit" disabled={saving}>{saving ? 'Saving…' : editing ? 'Save changes' : 'Create course'}</Button>
           </div>

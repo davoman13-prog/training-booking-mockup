@@ -15,7 +15,7 @@ export default function DelegateDetailPage() {
   const navigate = useNavigate()
   const { delegates, bookings, courses, sessions, isLoading, refresh } = useCatalog()
   const delegate = delegates.find((item) => item.id === delegateId)
-  const [form, setForm] = useState({ firstName: '', lastName: '', email: '', phone: '', organisation: '', managerName: '', managerEmail: '', accountStatus: 'active', canLogin: true, canBook: true, adminNotes: '', specialRequirements: '' })
+  const [form, setForm] = useState({ firstName: '', lastName: '', email: '', phone: '', organisation: '', managerName: '', managerEmail: '', staffType: 'clinical', accountStatus: 'active', canLogin: true, canBook: true, adminNotes: '', specialRequirements: '' })
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
@@ -26,7 +26,7 @@ export default function DelegateDetailPage() {
     const [firstName, ...lastName] = delegate.name.split(' ')
     // Hydrate the controlled form whenever a refreshed database record arrives.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setForm({ firstName, lastName: lastName.join(' '), email: delegate.email, phone: delegate.phone ?? '', organisation: delegate.organisation, managerName: delegate.managerName, managerEmail: delegate.managerEmail, accountStatus: delegate.accountStatus ?? 'active', canLogin: delegate.canLogin ?? true, canBook: delegate.canBook ?? true, adminNotes: delegate.adminNotes ?? '', specialRequirements: delegate.specialRequirements ?? '' })
+    setForm({ firstName, lastName: lastName.join(' '), email: delegate.email, phone: delegate.phone ?? '', organisation: delegate.organisation, managerName: delegate.managerName, managerEmail: delegate.managerEmail, staffType: delegate.staffType ?? 'clinical', accountStatus: delegate.accountStatus ?? 'active', canLogin: delegate.canLogin ?? true, canBook: delegate.canBook ?? true, adminNotes: delegate.adminNotes ?? '', specialRequirements: delegate.specialRequirements ?? '' })
   }, [delegate])
 
   if (isLoading) return <p className="rounded-2xl border border-slate-200 bg-white p-8 text-slate-700">Loading the live delegate...</p>
@@ -68,6 +68,7 @@ export default function DelegateDetailPage() {
       <div className="grid gap-5 md:grid-cols-3"><div><label className="text-sm font-semibold">First name</label><Input value={form.firstName} onChange={(e) => field('firstName', e.target.value)} required /></div><div><label className="text-sm font-semibold">Last name</label><Input value={form.lastName} onChange={(e) => field('lastName', e.target.value)} required /></div><div><label className="text-sm font-semibold">Status</label><Select value={form.accountStatus} onChange={(e) => field('accountStatus', e.target.value)}><option value="active">Active</option><option value="inactive">Inactive</option><option value="anonymised">Anonymised</option></Select></div></div>
       <div className="grid gap-5 md:grid-cols-3"><div><label className="text-sm font-semibold">Email</label><Input type="email" value={form.email} onChange={(e) => field('email', e.target.value)} required /></div><div><label className="text-sm font-semibold">Phone</label><Input value={form.phone} onChange={(e) => field('phone', e.target.value)} /></div><div><label className="text-sm font-semibold">Practice / organisation</label><Input value={form.organisation} onChange={(e) => field('organisation', e.target.value)} required /></div></div>
       <div className="grid gap-5 md:grid-cols-2"><div><label className="text-sm font-semibold">Practice manager</label><Input value={form.managerName} onChange={(e) => field('managerName', e.target.value)} required /></div><div><label className="text-sm font-semibold">Manager email</label><Input type="email" value={form.managerEmail} onChange={(e) => field('managerEmail', e.target.value)} required /></div></div>
+      <div><label className="text-sm font-semibold">Staff type</label><Select value={form.staffType} onChange={(e) => field('staffType', e.target.value)} required><option value="manager">Manager</option><option value="office">Office staff</option><option value="clinical">Clinical</option></Select><p className="mt-1 text-xs text-slate-500">Controls which targeted courses this delegate can see and book.</p></div>
       <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
         <h2 className="text-lg font-semibold text-slate-950">Account security</h2>
         <p className="mt-1 text-sm text-slate-600">Control signing in and making new bookings separately.</p>

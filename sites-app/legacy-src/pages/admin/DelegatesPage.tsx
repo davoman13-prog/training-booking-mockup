@@ -22,6 +22,7 @@ interface DelegateListRow {
   canBook: number
   bookingCount: number
   upcomingCount: number
+  staffType: 'manager' | 'office' | 'clinical'
 }
 
 export default function DelegatesPage() {
@@ -55,9 +56,10 @@ export default function DelegatesPage() {
       </div>
       <p className="mt-4 text-sm font-semibold text-slate-900">{pagination.total.toLocaleString()} result{pagination.total === 1 ? '' : 's'}</p>
     </Card>
-    <Table headers={['Delegate', 'Practice', 'Manager', 'Bookings', 'Upcoming', 'Sign in', 'Booking', 'Status']}>
+    <Table headers={['Delegate', 'Staff type', 'Practice', 'Manager', 'Bookings', 'Upcoming', 'Sign in', 'Booking', 'Status']}>
       {rows.map((delegate) => <tr key={delegate.id} className="border-t border-slate-200">
         <td className="px-4 py-4 text-sm"><Link to={`/admin/delegates/${delegate.id}`} className="font-semibold text-cyan-800 hover:text-cyan-950">{delegate.name}</Link><p className="mt-1 text-xs text-slate-500">{delegate.email}</p><p className="mt-1 text-xs text-slate-500">{delegate.phone}</p></td>
+        <td className="px-4 py-4 text-sm text-slate-700">{delegate.staffType === 'office' ? 'Office staff' : delegate.staffType[0].toUpperCase() + delegate.staffType.slice(1)}</td>
         <td className="px-4 py-4 text-sm text-slate-700">{delegate.organisation}</td>
         <td className="px-4 py-4 text-sm text-slate-700">{delegate.managerName}<p className="mt-1 text-xs text-slate-500">{delegate.managerEmail}</p></td>
         <td className="px-4 py-4 text-sm text-slate-700">{Number(delegate.bookingCount)}</td>

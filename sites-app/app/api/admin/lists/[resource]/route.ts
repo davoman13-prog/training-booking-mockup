@@ -63,7 +63,7 @@ async function delegatesList(url: URL, page: number, pageSize: number) {
     `SELECT count(*) AS total FROM delegates d${where}`,
     `SELECT d.id, trim(d.first_name || ' ' || d.last_name) AS name, d.email, d.phone,
        d.organisation, d.manager_name AS managerName, d.manager_email AS managerEmail,
-       d.account_status AS accountStatus, d.can_login AS canLogin, d.can_book AS canBook,
+       d.account_status AS accountStatus, d.can_login AS canLogin, d.can_book AS canBook, d.staff_type AS staffType,
        count(b.id) AS bookingCount,
        sum(CASE WHEN b.status <> 'cancelled' AND s.status = 'scheduled' THEN 1 ELSE 0 END) AS upcomingCount
      FROM delegates d

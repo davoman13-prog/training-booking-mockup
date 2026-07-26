@@ -9,7 +9,7 @@ import useCatalog from '../../hooks/useCatalog'
 
 export default function CourseDetailPage() {
   const { courseId } = useParams()
-  const { courses, locations, sessions, trainers, bookings, waitingListEntries, isLoading, refresh } = useCatalog()
+  const { courses, locations, sessions, trainers, delegates, bookings, waitingListEntries, isLoading, refresh } = useCatalog()
   const [waitingError, setWaitingError] = useState('')
   const [waitingMessage, setWaitingMessage] = useState('')
   const [waiting, setWaiting] = useState(false)
@@ -21,9 +21,10 @@ export default function CourseDetailPage() {
   }
 
   const courseSessions = sessions.filter((session) => session.courseId === course.id)
+  const eligible = !delegates[0]?.staffType || course.audienceTypes.includes(delegates[0].staffType)
   const waitingEntry = waitingListEntries.find((entry) => entry.courseId === course.id)
   const activeBooking = bookings.some((booking) => booking.courseId === course.id && booking.status !== 'cancelled' && booking.status !== 'completed')
-  const waitingListAvailable = course.status !== 'cancelled' && course.status !== 'completed' && !activeBooking
+  const waitingListAvailable = eligible && course.status !== 'cancelled' && course.status !== 'completed' && !activeBooking
 
   async function joinWaitingList() {
     setWaiting(true); setWaitingError(''); setWaitingMessage('')
@@ -43,6 +44,7 @@ export default function CourseDetailPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 rounded-2xl border border-cyan-100 bg-white p-6 shadow-sm">
+        {!eligible ? <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800">This course is not available for your staff type. You can review your staff type in My Account.</div> : null}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-cyan-700">Course details</p>
@@ -79,7 +81,7 @@ export default function CourseDetailPage() {
           <h2 className="text-xl font-semibold text-slate-950">Choose a session</h2>
           {courseSessions.map((session) => {
             const location = locations.find((item) => item.id === session.locationId)
-            const unavailable = !canBookSession(session, course)
+            const unavailable = !eligible || !canBookSession(session, course)
             const availabilityMessage = delegateSessionAvailabilityMessage(session, course)
 
             return (

@@ -23,13 +23,18 @@ export async function POST(request: Request) {
 
     const session = await env.DB.prepare(
       `SELECT s.id, s.course_id, s.location_id, s.status, s.start_date, s.available_seats,
-              c.status AS course_status, c.funding_type, c.price_pence
+              c.status AS course_status, c.funding_type, c.price_pence, c.audience_types,
+              d.staff_type
        FROM sessions s JOIN courses c ON c.id = s.course_id
+       JOIN delegates d ON d.id = ?
        WHERE s.id = ?`,
-    ).bind(payload.sessionId).first<{ id: string; course_id: string; location_id: string; status: string; start_date: string; available_seats: number; course_status: string; funding_type: string; price_pence: number | null }>();
+    ).bind(delegateId, payload.sessionId).first<{ id: string; course_id: string; location_id: string; status: string; start_date: string; available_seats: number; course_status: string; funding_type: string; price_pence: number | null; audience_types: string; staff_type: string }>();
     if (!session || session.course_id !== payload.courseId) return Response.json({ code: "SESSION_NOT_FOUND", message: "The selected session was not found for this course." }, { status: 404 });
     if (session.course_status === "cancelled" || session.course_status === "completed") {
       return Response.json({ code: "COURSE_UNAVAILABLE", message: "This course is cancelled or completed and cannot accept bookings." }, { status: 409 });
+    }
+    if (!(JSON.parse(session.audience_types) as string[]).includes(session.staff_type)) {
+      return Response.json({ code: "COURSE_NOT_AVAILABLE_FOR_STAFF_TYPE", message: "This course is not available for your staff type." }, { status: 403 });
     }
     if (session.status !== "scheduled") return Response.json({ code: "SESSION_UNAVAILABLE", message: "Only scheduled sessions can accept bookings." }, { status: 409 });
     if (session.start_date < new Date().toISOString().slice(0, 10)) {

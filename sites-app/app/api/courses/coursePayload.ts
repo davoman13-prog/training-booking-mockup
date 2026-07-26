@@ -13,6 +13,7 @@ export interface CoursePayload {
   duration?: string;
   tags?: string[];
   capacity?: number;
+  audienceTypes?: Array<"manager" | "office" | "clinical">;
 }
 
 export function validateCoursePayload(payload: CoursePayload) {
@@ -22,6 +23,8 @@ export function validateCoursePayload(payload: CoursePayload) {
   if (!payload.locationId) return "Primary location is required.";
   if (!payload.duration?.trim()) return "Duration is required.";
   if (!payload.capacity || payload.capacity < 1) return "Maximum attendees must be at least 1.";
+  if (!payload.audienceTypes?.length) return "Select at least one delegate staff type for this course.";
+  if (payload.audienceTypes.some((type) => !["manager", "office", "clinical"].includes(type))) return "The course audience contains an invalid staff type.";
   if (payload.fundingType === "unfunded" && (!payload.price || payload.price <= 0)) {
     return "A positive price is required for an unfunded course.";
   }
@@ -45,6 +48,7 @@ export function courseValues(payload: CoursePayload) {
     duration: payload.duration!.trim(),
     tags: JSON.stringify(payload.tags ?? []),
     capacity: payload.capacity!,
+    audienceTypes: JSON.stringify(payload.audienceTypes),
     updatedAt: new Date().toISOString(),
   } satisfies Partial<typeof courses.$inferInsert>;
 }

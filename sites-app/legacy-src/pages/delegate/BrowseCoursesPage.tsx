@@ -12,7 +12,8 @@ import useCatalog from '../../hooks/useCatalog'
 const anyValue = 'any'
 
 export default function BrowseCoursesPage() {
-  const { courses, locations, sessions, isLive } = useCatalog()
+  const { courses, locations, sessions, delegates, isLive } = useCatalog()
+  const staffType = delegates[0]?.staffType
   const [searchTerm, setSearchTerm] = useState('')
   const [category, setCategory] = useState(anyValue)
   const [funding, setFunding] = useState(anyValue)
@@ -26,6 +27,7 @@ export default function BrowseCoursesPage() {
     const normalisedSearch = searchTerm.trim().toLowerCase()
 
     return courses.filter((course) => {
+      if (staffType && !course.audienceTypes.includes(staffType)) return false
       const courseSessions = sessions.filter((session) => session.courseId === course.id)
       const searchableText = [course.title, course.description, course.category, course.tags.join(' ')].join(' ').toLowerCase()
       const matchesSearch = !normalisedSearch || searchableText.includes(normalisedSearch)
@@ -40,7 +42,7 @@ export default function BrowseCoursesPage() {
 
       return matchesSearch && matchesCategory && matchesFunding && matchesLocation && matchesAvailability
     })
-  }, [availability, category, courses, funding, locationId, searchTerm, sessions])
+  }, [availability, category, courses, funding, locationId, searchTerm, sessions, staffType])
 
   function clearFilters() {
     setSearchTerm('')
@@ -57,7 +59,7 @@ export default function BrowseCoursesPage() {
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-cyan-700">Course browsing</p>
           <h1 className="mt-2 text-3xl font-semibold text-slate-950">Browse available training</h1>
           <p className="mt-2 text-sm text-slate-600">
-            Search across {courses.length} courses and choose a session to book.
+            Courses available for your {staffType === 'manager' ? 'manager' : staffType === 'office' ? 'office staff' : 'clinical'} profile.
             <span className={`ml-2 font-semibold ${isLive ? 'text-emerald-700' : 'text-amber-700'}`}>
               {isLive ? 'Live catalogue' : 'Loading catalogue'}
             </span>

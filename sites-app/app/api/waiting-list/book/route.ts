@@ -28,8 +28,10 @@ export async function POST(request: Request) {
       `SELECT w.id, w.delegate_id
        FROM waiting_list_entries w
        JOIN delegates d ON d.id = w.delegate_id
+       JOIN courses c ON c.id = w.course_id
        WHERE w.course_id = ? AND w.delegate_id IN (${placeholders})
-         AND d.account_status = 'active' AND d.can_book = 1`,
+         AND d.account_status = 'active' AND d.can_book = 1
+         AND EXISTS (SELECT 1 FROM json_each(c.audience_types) audience WHERE audience.value = d.staff_type)`,
     ).bind(session.course_id, ...delegateIds).all<{ id: string; delegate_id: string }>();
     const selected = waiting.results.slice(0, session.available_seats);
     if (!selected.length) return Response.json({ code: "NO_ELIGIBLE_DELEGATES", message: "No selected delegates remain on this waiting list." }, { status: 409 });

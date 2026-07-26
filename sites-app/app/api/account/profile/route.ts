@@ -4,6 +4,7 @@ import { currentDelegate } from "../../auth/auth";
 interface ProfilePayload {
   firstName?: string; lastName?: string; phone?: string; organisation?: string;
   managerName?: string; managerEmail?: string; specialRequirements?: string;
+  staffType?: "manager" | "office" | "clinical";
 }
 
 function validate(payload: ProfilePayload) {
@@ -11,6 +12,7 @@ function validate(payload: ProfilePayload) {
   if (!payload.organisation?.trim()) return "Practice or organisation is required.";
   if (!payload.managerName?.trim()) return "Practice manager name is required.";
   if (!payload.managerEmail?.trim() || !payload.managerEmail.includes("@")) return "A valid practice manager email is required.";
+  if (!["manager", "office", "clinical"].includes(payload.staffType ?? "")) return "Choose your staff type.";
   return "";
 }
 
@@ -18,7 +20,7 @@ export async function GET(request: Request) {
   const delegate = await currentDelegate(request);
   if (!delegate) return Response.json({ code: "NOT_AUTHENTICATED", message: "Sign in to view your profile." }, { status: 401 });
   const profile = await env.DB.prepare(
-    `SELECT id, first_name, last_name, email, phone, organisation, manager_name, manager_email, special_requirements
+    `SELECT id, first_name, last_name, email, phone, organisation, manager_name, manager_email, staff_type, special_requirements
      FROM delegates WHERE id = ?`,
   ).bind(delegate.id).first();
   return profile ? Response.json({ profile }) : Response.json({ code: "PROFILE_NOT_FOUND", message: "Your profile was not found." }, { status: 404 });
@@ -34,14 +36,14 @@ export async function PUT(request: Request) {
     const now = new Date().toISOString();
     await env.DB.prepare(
       `UPDATE delegates SET first_name = ?, last_name = ?, phone = ?, organisation = ?, manager_name = ?,
-       manager_email = ?, special_requirements = ?, updated_at = ? WHERE id = ?`,
+       manager_email = ?, staff_type = ?, special_requirements = ?, updated_at = ? WHERE id = ?`,
     ).bind(
       payload.firstName!.trim(), payload.lastName!.trim(), payload.phone?.trim() || null,
       payload.organisation!.trim(), payload.managerName!.trim(), payload.managerEmail!.trim().toLowerCase(),
-      payload.specialRequirements?.trim() || "", now, delegate.id,
+      payload.staffType, payload.specialRequirements?.trim() || "", now, delegate.id,
     ).run();
     const profile = await env.DB.prepare(
-      `SELECT id, first_name, last_name, email, phone, organisation, manager_name, manager_email, special_requirements
+      `SELECT id, first_name, last_name, email, phone, organisation, manager_name, manager_email, staff_type, special_requirements
        FROM delegates WHERE id = ?`,
     ).bind(delegate.id).first();
     return Response.json({ profile });

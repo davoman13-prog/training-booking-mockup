@@ -7,6 +7,7 @@ export type InvoiceStatus = 'draft' | 'issued' | 'paid' | 'overdue' | 'cancelled
 export type CertificateStatus = 'available' | 'pending' | 'issued' | 'revoked'
 export type TrainerStatus = 'active' | 'inactive'
 export type SessionStatus = 'scheduled' | 'completed' | 'cancelled' | 'on_hold'
+export type StaffType = 'manager' | 'office' | 'clinical'
 
 export interface Course {
   id: string
@@ -28,6 +29,7 @@ export interface Course {
   capacity: number
   attendeeCount: number
   outcomes: string[]
+  audienceTypes: StaffType[]
 }
 
 export interface Location {
@@ -93,6 +95,7 @@ export interface Delegate {
   registrationDate?: string
   adminNotes?: string
   specialRequirements?: string
+  staffType: StaffType
   bookingIds: string[]
   certificateIds: string[]
   invoiceIds: string[]

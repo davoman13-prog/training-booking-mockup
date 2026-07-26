@@ -26,9 +26,9 @@ export async function POST(request: Request) {
     const { salt, hash } = await hashPassword(payload.password!);
     await env.DB.batch([
       env.DB.prepare(
-        `INSERT INTO delegates (id, first_name, last_name, email, phone, organisation, manager_name, manager_email, account_status, admin_notes, special_requirements, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', '', '', ?, ?)`,
-      ).bind(id, payload.firstName!.trim(), payload.lastName!.trim(), payload.email!.trim().toLowerCase(), payload.phone?.trim() || null, payload.organisation!.trim(), payload.managerName!.trim(), payload.managerEmail!.trim().toLowerCase(), now, now),
+        `INSERT INTO delegates (id, first_name, last_name, email, phone, organisation, manager_name, manager_email, staff_type, account_status, admin_notes, special_requirements, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', '', '', ?, ?)`,
+      ).bind(id, payload.firstName!.trim(), payload.lastName!.trim(), payload.email!.trim().toLowerCase(), payload.phone?.trim() || null, payload.organisation!.trim(), payload.managerName!.trim(), payload.managerEmail!.trim().toLowerCase(), payload.staffType, now, now),
       env.DB.prepare(
         `INSERT INTO delegate_auth_accounts (delegate_id, password_hash, password_salt, failed_attempts, email_verified_at, password_updated_at, created_at, updated_at)
          VALUES (?, ?, ?, 0, ?, ?, ?, ?)`,

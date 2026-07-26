@@ -66,6 +66,7 @@ export async function GET(request: Request) {
           .map((session) => session.id),
         tags: JSON.parse(course.tags) as string[],
         outcomes: JSON.parse(course.outcomes) as string[],
+        audienceTypes: JSON.parse(course.audienceTypes) as string[],
       })),
       locations: locationRows,
       trainers: trainerRows.map((trainer) => ({

@@ -78,6 +78,13 @@
       "when": 1785003884145,
       "tag": "0010_watery_franklin_storm",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1785044862514,
+      "tag": "0011_nifty_black_knight",
+      "breakpoints": true
     }
   ]
 }

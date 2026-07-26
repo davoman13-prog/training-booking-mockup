@@ -26,7 +26,7 @@ export default function WaitingListsPage() {
     .filter((item) => item.count > 0)
     .sort((a, b) => b.count - a.count || a.course.title.localeCompare(b.course.title))
   const availableDelegates = delegates
-    .filter((delegate) => delegate.accountStatus === 'active' && delegate.canBook !== false && !courseEntries.some((entry) => entry.delegateId === delegate.id))
+    .filter((delegate) => delegate.accountStatus === 'active' && delegate.canBook !== false && (!course || course.audienceTypes.includes(delegate.staffType)) && !courseEntries.some((entry) => entry.delegateId === delegate.id))
     .sort((a, b) => a.name.localeCompare(b.name))
 
   function chooseCourse(nextCourseId: string) {

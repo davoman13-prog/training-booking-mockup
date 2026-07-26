@@ -100,6 +100,7 @@ export const courses = sqliteTable("courses", {
   capacity: integer("capacity").notNull(),
   attendeeCount: integer("attendee_count").notNull().default(0),
   outcomes: text("outcomes").notNull().default("[]"),
+  audienceTypes: text("audience_types").notNull().default('["manager","office","clinical"]'),
   ...timestamps,
 });
 
@@ -140,6 +141,7 @@ export const delegates = sqliteTable("delegates", {
   canBook: integer("can_book", { mode: "boolean" }).notNull().default(true),
   adminNotes: text("admin_notes").notNull().default(""),
   specialRequirements: text("special_requirements").notNull().default(""),
+  staffType: text("staff_type", { enum: ["manager", "office", "clinical"] }).notNull().default("clinical"),
   ...timestamps,
 }, (table) => [
   index("delegates_account_status_idx").on(table.accountStatus),
