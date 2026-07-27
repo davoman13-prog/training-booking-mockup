@@ -20,6 +20,17 @@ export async function POST(request: Request) {
     if (invalidPassword) return Response.json({ code: "WEAK_PASSWORD", message: invalidPassword }, { status: 400 });
     if (!payload.termsAccepted) return Response.json({ code: "TERMS_REQUIRED", message: "Accept the registration terms to continue." }, { status: 400 });
 
+    const email = payload.email!.trim().toLowerCase();
+    const existingAdmin = await env.DB.prepare(
+      "SELECT id FROM users WHERE lower(email) = ? LIMIT 1",
+    ).bind(email).first();
+    if (existingAdmin) {
+      return Response.json(
+        { code: "EMAIL_IN_USE", message: "An account already exists for that email address." },
+        { status: 409 },
+      );
+    }
+
     const id = `delegate-${crypto.randomUUID()}`;
     const now = new Date().toISOString();
     const requiresVerification = emailDeliveryConfigured();
@@ -28,7 +39,7 @@ export async function POST(request: Request) {
       env.DB.prepare(
         `INSERT INTO delegates (id, first_name, last_name, email, phone, organisation, manager_name, manager_email, staff_type, account_status, admin_notes, special_requirements, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', '', '', ?, ?)`,
-      ).bind(id, payload.firstName!.trim(), payload.lastName!.trim(), payload.email!.trim().toLowerCase(), payload.phone?.trim() || null, payload.organisation!.trim(), payload.managerName!.trim(), payload.managerEmail!.trim().toLowerCase(), payload.staffType, now, now),
+      ).bind(id, payload.firstName!.trim(), payload.lastName!.trim(), email, payload.phone?.trim() || null, payload.organisation!.trim(), payload.managerName!.trim(), payload.managerEmail!.trim().toLowerCase(), payload.staffType, now, now),
       env.DB.prepare(
         `INSERT INTO delegate_auth_accounts (delegate_id, password_hash, password_salt, failed_attempts, email_verified_at, password_updated_at, created_at, updated_at)
          VALUES (?, ?, ?, 0, ?, ?, ?, ?)`,
@@ -40,7 +51,7 @@ export async function POST(request: Request) {
         await createAndSendCode({
           accountType: "delegate",
           accountId: id,
-          email: payload.email!.trim().toLowerCase(),
+          email,
           name: payload.firstName!.trim(),
           purpose: "verify_email",
         });
@@ -50,7 +61,7 @@ export async function POST(request: Request) {
       }
       return Response.json({
         requiresVerification: true,
-        email: payload.email!.trim().toLowerCase(),
+        email,
         emailSent,
         message: emailSent
           ? "Account created. Enter the code sent to your email address."
@@ -59,7 +70,7 @@ export async function POST(request: Request) {
     }
     const session = await createDelegateSession(id);
     return Response.json(
-      { user: { id, name: `${payload.firstName!.trim()} ${payload.lastName!.trim()}`, email: payload.email!.trim().toLowerCase(), role: "delegate" } },
+      { user: { id, name: `${payload.firstName!.trim()} ${payload.lastName!.trim()}`, email, role: "delegate" } },
       { status: 201, headers: { "Set-Cookie": session.cookie } },
     );
   } catch (error) {

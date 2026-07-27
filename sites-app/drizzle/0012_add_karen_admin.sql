@@ -1,7 +1,10 @@
 INSERT INTO `users`
   (`id`, `email`, `first_name`, `last_name`, `role`, `is_active`, `is_anonymised`, `created_at`, `updated_at`)
-VALUES
-  ('user-karen-kalu-admin', 'karen@kalu.co.uk', 'Karen', '', 'Admin', 1, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+SELECT
+  'user-karen-kalu-admin', 'karen@kalu.co.uk', 'Karen', '', 'Admin', 1, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+WHERE NOT EXISTS (
+  SELECT 1 FROM `delegates` WHERE lower(`email`) = 'karen@kalu.co.uk'
+)
 ON CONFLICT(`email`) DO UPDATE SET
   `first_name` = CASE WHEN trim(`users`.`first_name`) = '' THEN 'Karen' ELSE `users`.`first_name` END,
   `role` = 'Admin',
@@ -20,4 +23,7 @@ SELECT
   CURRENT_TIMESTAMP
 FROM `users`
 WHERE `email` = 'karen@kalu.co.uk'
+  AND NOT EXISTS (
+    SELECT 1 FROM `delegates` WHERE lower(`email`) = 'karen@kalu.co.uk'
+  )
 ON CONFLICT(`user_id`) DO NOTHING;
