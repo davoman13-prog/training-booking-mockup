@@ -90,6 +90,7 @@ const paginatedHookUrl = new URL("../legacy-src/hooks/usePaginatedList.ts", impo
 const bookingListUrl = new URL("../legacy-src/pages/admin/ViewBookingsPage.tsx", import.meta.url);
 const performanceMigrationUrl = new URL("../drizzle/0010_watery_franklin_storm.sql", import.meta.url);
 const audienceMigrationUrl = new URL("../drizzle/0011_nifty_black_knight.sql", import.meta.url);
+const karenAdminMigrationUrl = new URL("../drizzle/0012_add_karen_admin.sql", import.meta.url);
 
 test("catalogue refresh always reads current server data", async () => {
   const hook = await readFile(catalogHookUrl, "utf8");
@@ -640,4 +641,14 @@ test("delegate staff types control course visibility, booking and waiting-list e
   assert.match(booking, /COURSE_NOT_AVAILABLE_FOR_STAFF_TYPE/);
   assert.match(waiting, /course\.audience_types/);
   assert.match(allocation, /json_each\(c\.audience_types\)/);
+});
+
+test("Karen's administrator account is provisioned safely and idempotently", async () => {
+  const migration = await readFile(karenAdminMigrationUrl, "utf8");
+  assert.match(migration, /karen@kalu\.co\.uk/);
+  assert.match(migration, /'Admin'/);
+  assert.match(migration, /ON CONFLICT\(`email`\) DO UPDATE/);
+  assert.match(migration, /INSERT INTO `admin_auth_accounts`/);
+  assert.match(migration, /ON CONFLICT\(`user_id`\) DO NOTHING/);
+  assert.doesNotMatch(migration, /Password123|temporary password/i);
 });
